@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilamentDB Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .test-suite {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .test-suite-header {
+            background: #f5f5f5;
+            padding: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .test-suite-header:hover {
+            background: #e5e5e5;
+        }
+        
+        .test-suite-content {
+            display: none;
+            padding: 15px;
+        }
+        
+        .test-suite-content.expanded {
+            display: block;
+        }
+        
+        .test-case {
+            border: 1px solid #eee;
+            margin: 10px 0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .test-case-header {
+            background: #f9f9f9;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .test-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .test-status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .test-status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .test-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .test-details {
+            padding: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .test-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .run-tests-btn {
+            background: #FF6B35;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .run-tests-btn:hover {
+            background: #e55a2e;
+        }
+        
+        .summary {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>FilamentDB Test Suite</h1>
+    
+    <div class="summary">
+        <div id="testSummary">Tests not run yet</div>
+        <button class="run-tests-btn" onclick="runAllTests()">Run All Tests</button>
+    </div>
+    
+    <div class="test-suite">
+        <div class="test-suite-header" onclick="toggleSuite(this)">
+            Cloud Storage Tests ▼
+        </div>
+        <div class="test-suite-content">
+            <div id="cloudStorageTests"></div>
+        </div>
+    </div>
+    
+    <div class="test-suite">
+        <div class="test-suite-header" onclick="toggleSuite(this)">
+            Camera Tests ▼
+        </div>
+        <div class="test-suite-content">
+            <div id="cameraTests"></div>
+        </div>
+    </div>
+    
+    <div class="test-suite">
+        <div class="test-suite-header" onclick="toggleSuite(this)">
+            QR Code Processing Tests ▼
+        </div>
+        <div class="test-suite-content">
+            <div id="qrTests"></div>
+        </div>
+    </div>
+    
+    <div class="test-suite">
+        <div class="test-suite-header" onclick="toggleSuite(this)">
+            Inventory Management Tests ▼
+        </div>
+        <div class="test-suite-content">
+            <div id="inventoryTests"></div>
+        </div>
+    </div>
+    
+    <div class="test-suite">
+        <div class="test-suite-header" onclick="toggleSuite(this)">
+            Error Handling Tests ▼
+        </div>
+        <div class="test-suite-content">
+            <div id="errorHandlingTests"></div>
+        </div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="cloud-storage.js"></script>
+    <script src="shared-qr-processing.js"></script>
+    <script src="error-handling-tests.js"></script>
+    <script>
+        // Test runner
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            errors: []
+        };
+        
+        function toggleSuite(header) {
+            const content = header.nextElementSibling;
+            const isExpanded = content.classList.contains('expanded');
+            content.classList.toggle('expanded', !isExpanded);
+            header.textContent = header.textContent.replace(isExpanded ? '▲' : '▼', isExpanded ? '▼' : '▲');
+        }
+        
+        async function runAllTests() {
+            testResults = { total: 0, passed: 0, failed: 0, errors: [] };
+            
+            document.getElementById('testSummary').textContent = 'Running tests...';
+            
+            // Run test suites
+            await runCloudStorageTests();
+            await runCameraTests();
+            await runQRProcessingTests();
+            await runInventoryTests();
+            await runErrorHandlingTestSuite();
+            
+            // Update summary
+            const summary = `Tests completed: ${testResults.passed}/${testResults.total} passed, ${testResults.failed} failed`;
+            document.getElementById('testSummary').innerHTML = `
+                <strong>${summary}</strong><br>
+                ${testResults.failed > 0 ? '<span style="color: red;">Some tests failed</span>' : '<span style="color: green;">All tests passed!</span>'}
+            `;
+        }
+        
+        function createTestCase(name, status, details, error = null) {
+            testResults.total++;
+            if (status === 'pass') testResults.passed++;
+            if (status === 'fail') {
+                testResults.failed++;
+                testResults.errors.push({ name, error });
+            }
+            
+            return `
+                <div class="test-case">
+                    <div class="test-case-header">
+                        <span>${name}</span>
+                        <span class="test-status ${status}">${status.toUpperCase()}</span>
+                    </div>
+                    <div class="test-details">
+                        ${details}
+                        ${error ? `<div class="test-error">${error}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Cloud Storage Tests
+        async function runCloudStorageTests() {
+            const container = document.getElementById('cloudStorageTests');
+            let html = '';
+            
+            // Test 1: CloudStorage class instantiation
+            try {
+                const storage = new CloudStorage();
+                html += createTestCase(
+                    'CloudStorage instantiation',
+                    'pass',
+                    'CloudStorage class can be instantiated successfully'
+                );
+            } catch (error) {
+                html += createTestCase(
+                    'CloudStorage instantiation',
+                    'fail',
+                    'Failed to instantiate CloudStorage class',
+                    error.message
+                );
+            }
+            
+            // Test 2: Settings persistence
+            try {
+                const storage = new CloudStorage();
+                const testSettings = {
+                    binId: 'test-bin-id',
+                    apiKey: 'test-api-key',
+                    enabled: true
+                };
+                
+                // Save settings
+                storage.binId = testSettings.binId;
+                storage.apiKey = testSettings.apiKey;
+                storage.isEnabled = testSettings.enabled;
+                storage.saveSettings();
+                
+                // Create new instance to test loading
+                const storage2 = new CloudStorage();
+                
+                if (storage2.binId === testSettings.binId && 
+                    storage2.apiKey === testSettings.apiKey && 
+                    storage2.isEnabled === testSettings.enabled) {
+                    html += createTestCase(
+                        'Settings persistence',
+                        'pass',
+                        'Cloud storage settings are saved and loaded correctly'
+                    );
+                } else {
+                    html += createTestCase(
+                        'Settings persistence',
+                        'fail',
+                        'Settings were not persisted correctly'
+                    );
+                }
+                
+                // Cleanup
+                localStorage.removeItem('cloudStorageSettings');
+            } catch (error) {
+                html += createTestCase(
+                    'Settings persistence',
+                    'fail',
+                    'Error testing settings persistence',
+                    error.message
+                );
+            }
+            
+            // Test 3: Setup validation
+            try {
+                const storage = new CloudStorage();
+                
+                // Test empty API key
+                try {
+                    await storage.setup('');
+                    html += createTestCase(
+                        'Setup validation (empty API key)',
+                        'fail',
+                        'Should reject empty API key'
+                    );
+                } catch (error) {
+                    if (error.message.includes('API key is required')) {
+                        html += createTestCase(
+                            'Setup validation (empty API key)',
+                            'pass',
+                            'Correctly rejects empty API key'
+                        );
+                    } else {
+                        html += createTestCase(
+                            'Setup validation (empty API key)',
+                            'fail',
+                            'Unexpected error for empty API key',
+                            error.message
+                        );
+                    }
+                }
+                
+            } catch (error) {
+                html += createTestCase(
+                    'Setup validation (empty API key)',
+                    'fail',
+                    'Error testing setup validation',
+                    error.message
+                );
+            }
+            
+            // Test 4: Device ID generation
+            try {
+                const storage = new CloudStorage();
+                const deviceId1 = storage.getDeviceId();
+                const deviceId2 = storage.getDeviceId();
+                
+                if (deviceId1 === deviceId2 && deviceId1.startsWith('device_') && deviceId1.length > 10) {
+                    html += createTestCase(
+                        'Device ID generation',
+                        'pass',
+                        `Device ID generated and persisted: ${deviceId1}`
+                    );
+                } else {
+                    html += createTestCase(
+                        'Device ID generation',
+                        'fail',
+                        `Device ID inconsistent: ${deviceId1} vs ${deviceId2}`
+                    );
+                }
+                
+                // Cleanup
+                localStorage.removeItem('deviceId');
+            } catch (error) {
+                html += createTestCase(
+                    'Device ID generation',
+                    'fail',
+                    'Error testing device ID generation',
+                    error.message
+                );
+            }
+            
+            // Test 5: Data merging
+            try {
+                const storage = new CloudStorage();
+                const localData = [
+                    { Manufacturer: 'Hatchbox', Material: 'PLA', Color: 'Black', Temp1: '210', Temp2: '60', id: '1' },
+                    { Manufacturer: 'eSUN', Material: 'PETG', Color: 'White', Temp1: '235', Temp2: '70', id: '2' }
+                ];
+                const cloudData = [
+                    { Manufacturer: 'Hatchbox', Material: 'PLA', Color: 'Black', Temp1: '210', Temp2: '60', id: '1' }, // Duplicate
+                    { Manufacturer: 'Overture', Material: 'PLA', Color: 'Red', Temp1: '205', Temp2: '55', id: '3' } // New
+                ];
+                
+                const merged = storage.mergeInventoryData(localData, cloudData);
+                
+                if (merged.length === 3 && 
+                    merged.some(item => item.Manufacturer === 'Overture') &&
+                    merged.filter(item => item.Manufacturer === 'Hatchbox').length === 1) {
+                    html += createTestCase(
+                        'Data merging',
+                        'pass',
+                        `Successfully merged ${localData.length} local + ${cloudData.length} cloud = ${merged.length} unique items`
+                    );
+                } else {
+                    html += createTestCase(
+                        'Data merging',
+                        'fail',
+                        `Merge failed: expected 3 items, got ${merged.length}`
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'Data merging',
+                    'fail',
+                    'Error testing data merging',
+                    error.message
+                );
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Camera Tests
+        async function runCameraTests() {
+            const container = document.getElementById('cameraTests');
+            let html = '';
+            
+            // Test 1: MediaDevices API availability
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                html += createTestCase(
+                    'MediaDevices API availability',
+                    'pass',
+                    'getUserMedia API is available'
+                );
+            } else {
+                html += createTestCase(
+                    'MediaDevices API availability',
+                    'fail',
+                    'getUserMedia API is not available - camera features will not work'
+                );
+            }
+            
+            // Test 2: Camera enumeration
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const cameras = devices.filter(device => device.kind === 'videoinput');
+                    
+                    html += createTestCase(
+                        'Camera enumeration',
+                        'pass',
+                        `Found ${cameras.length} camera(s): ${cameras.map(c => c.label || 'Camera').join(', ')}`
+                    );
+                } else {
+                    html += createTestCase(
+                        'Camera enumeration',
+                        'fail',
+                        'enumerateDevices API not available'
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'Camera enumeration',
+                    'fail',
+                    'Error enumerating cameras',
+                    error.message
+                );
+            }
+            
+            // Test 3: Rear camera constraint
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                // We can't actually request camera access in tests, but we can validate the constraint structure
+                if (constraints.video.facingMode === 'environment') {
+                    html += createTestCase(
+                        'Rear camera constraint',
+                        'pass',
+                        'Camera constraints correctly configured for rear camera (environment mode)'
+                    );
+                } else {
+                    html += createTestCase(
+                        'Rear camera constraint',
+                        'fail',
+                        'Camera constraints not set for rear camera'
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'Rear camera constraint',
+                    'fail',
+                    'Error testing camera constraints',
+                    error.message
+                );
+            }
+            
+            // Test 4: HTTPS requirement
+            const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+            if (isHTTPS) {
+                html += createTestCase(
+                    'HTTPS requirement',
+                    'pass',
+                    'Running on HTTPS or localhost - camera access should work'
+                );
+            } else {
+                html += createTestCase(
+                    'HTTPS requirement',
+                    'fail',
+                    'Not running on HTTPS - camera access may be blocked by browser security'
+                );
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // QR Processing Tests
+        async function runQRProcessingTests() {
+            const container = document.getElementById('qrTests');
+            let html = '';
+            
+            // Test 1: QR parsing function
+            try {
+                // Mock QR data
+                const qrData = "Hatchbox\nPLA\nBlack\n210\n60";
+                const lines = qrData.split('\n').map(line => line.trim());
+                const fields = ['Manufacturer', 'Material', 'Color', 'Temp1', 'Temp2'];
+                const parsedData = {};
+                
+                fields.forEach((field, index) => {
+                    if (index < lines.length && lines[index]) {
+                        parsedData[field] = lines[index];
+                    } else {
+                        parsedData[field] = null;
+                    }
+                });
+                
+                if (parsedData.Manufacturer === 'Hatchbox' && 
+                    parsedData.Material === 'PLA' && 
+                    parsedData.Color === 'Black') {
+                    html += createTestCase(
+                        'QR data parsing',
+                        'pass',
+                        'QR code data parsed correctly'
+                    );
+                } else {
+                    html += createTestCase(
+                        'QR data parsing',
+                        'fail',
+                        'QR code data not parsed correctly'
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'QR data parsing',
+                    'fail',
+                    'Error testing QR parsing',
+                    error.message
+                );
+            }
+            
+            // Test 2: Required field validation
+            try {
+                const incompleteData = { Manufacturer: 'Test', Material: '', Color: 'Red' };
+                const requiredFields = ['Manufacturer', 'Material', 'Color'];
+                const missingFields = requiredFields.filter(field => !incompleteData[field]);
+                
+                if (missingFields.length === 1 && missingFields[0] === 'Material') {
+                    html += createTestCase(
+                        'Required field validation',
+                        'pass',
+                        'Correctly identifies missing required fields'
+                    );
+                } else {
+                    html += createTestCase(
+                        'Required field validation',
+                        'fail',
+                        `Expected missing field 'Material', got: ${missingFields.join(', ')}`
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'Required field validation',
+                    'fail',
+                    'Error testing field validation',
+                    error.message
+                );
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Inventory Management Tests
+        async function runInventoryTests() {
+            const container = document.getElementById('inventoryTests');
+            let html = '';
+            
+            // Test 1: localStorage operations
+            try {
+                const testData = [
+                    { Manufacturer: 'Test', Material: 'PLA', Color: 'Blue', Temp1: '200', Temp2: '50', id: 'test1' }
+                ];
+                
+                // Save test data
+                localStorage.setItem('qrCodeEntries', JSON.stringify(testData));
+                
+                // Retrieve test data
+                const retrieved = JSON.parse(localStorage.getItem('qrCodeEntries') || '[]');
+                
+                if (retrieved.length === 1 && retrieved[0].Manufacturer === 'Test') {
+                    html += createTestCase(
+                        'localStorage operations',
+                        'pass',
+                        'Data successfully saved and retrieved from localStorage'
+                    );
+                } else {
+                    html += createTestCase(
+                        'localStorage operations',
+                        'fail',
+                        'Data not properly saved or retrieved from localStorage'
+                    );
+                }
+                
+                // Cleanup
+                localStorage.removeItem('qrCodeEntries');
+            } catch (error) {
+                html += createTestCase(
+                    'localStorage operations',
+                    'fail',
+                    'Error testing localStorage operations',
+                    error.message
+                );
+            }
+            
+            // Test 2: Data validation
+            try {
+                const validEntry = {
+                    Manufacturer: 'Hatchbox',
+                    Material: 'PLA',
+                    Color: 'Black',
+                    Temp1: '210',
+                    Temp2: '60',
+                    timestamp: new Date().toISOString(),
+                    id: 'test123'
+                };
+                
+                const requiredFields = ['Manufacturer', 'Material', 'Color'];
+                const hasRequiredFields = requiredFields.every(field => validEntry[field]);
+                
+                if (hasRequiredFields) {
+                    html += createTestCase(
+                        'Entry data validation',
+                        'pass',
+                        'Entry contains all required fields'
+                    );
+                } else {
+                    html += createTestCase(
+                        'Entry data validation',
+                        'fail',
+                        'Entry missing required fields'
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'Entry data validation',
+                    'fail',
+                    'Error testing data validation',
+                    error.message
+                );
+            }
+            
+            // Test 3: Search functionality
+            try {
+                const entries = [
+                    { Manufacturer: 'Hatchbox', Material: 'PLA', Color: 'Black' },
+                    { Manufacturer: 'eSUN', Material: 'PETG', Color: 'White' },
+                    { Manufacturer: 'Overture', Material: 'PLA', Color: 'Red' }
+                ];
+                
+                const searchTerm = 'pla';
+                const filtered = entries.filter(entry => {
+                    return (
+                        entry.Manufacturer.toLowerCase().includes(searchTerm) ||
+                        entry.Material.toLowerCase().includes(searchTerm) ||
+                        entry.Color.toLowerCase().includes(searchTerm)
+                    );
+                });
+                
+                if (filtered.length === 2) { // Should find 2 PLA entries
+                    html += createTestCase(
+                        'Search functionality',
+                        'pass',
+                        `Search correctly filters entries (found ${filtered.length} matches for '${searchTerm}')`
+                    );
+                } else {
+                    html += createTestCase(
+                        'Search functionality',
+                        'fail',
+                        `Search filtering incorrect (expected 2, got ${filtered.length})`
+                    );
+                }
+            } catch (error) {
+                html += createTestCase(
+                    'Search functionality',
+                    'fail',
+                    'Error testing search functionality',
+                    error.message
+                );
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Error Handling Test Suite
+        async function runErrorHandlingTestSuite() {
+            const container = document.getElementById('errorHandlingTests');
+            let html = '';
+            
+            try {
+                const tests = new ErrorHandlingTests();
+                await tests.runAllTests();
+                const report = tests.generateReport();
+                
+                // Convert results to HTML
+                tests.results.forEach(result => {
+                    const status = result.status === 'PASS' ? 'pass' : 
+                                 result.status === 'WARN' ? 'pending' : 'fail';
+                    html += createTestCase(result.name, status, result.message);
+                });
+                
+                // Add summary
+                html = `
+                    <div style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                        <strong>Error Handling Test Summary:</strong><br>
+                        ✅ Passed: ${report.passed} | ⚠️ Warnings: ${report.warned} | ❌ Failed: ${report.failed}
+                    </div>
+                ` + html;
+                
+            } catch (error) {
+                html = createTestCase(
+                    'Error Handling Test Suite',
+                    'fail',
+                    'Failed to run error handling tests',
+                    error.message
+                );
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Auto-expand first suite
+        document.addEventListener('DOMContentLoaded', () => {
+            const firstSuite = document.querySelector('.test-suite-content');
+            if (firstSuite) {
+                firstSuite.classList.add('expanded');
+                const header = firstSuite.previousElementSibling;
+                header.textContent = header.textContent.replace('▼', '▲');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,18 +1,46 @@
 {
-  "name": "FilamentDB",
+  "name": "FilamentDB - 3D Printing Inventory",
   "short_name": "FilamentDB",
-  "description": "Modern filament inventory management system",
+  "description": "Beautiful 3D printing filament inventory system with QR codes and cloud sync",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FAFAFA",
   "theme_color": "#FF6B35",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities", "tools"],
+  "lang": "en-US",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0iIzY2N2VlYSIgcng9IjQiLz48cGF0aCBkPSJNMyAzaDZWOUgzVjN6bTggMGg2VjlIMTFWM3ptOCA4aDZWMTloLTZWMTF6bS04IDBoNlYxMUgxMXY2em0tOCAwaDZWMTlIM1YxMXoiIGZpbGw9IndoaXRlIi8+PC9zdmc+",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9IiNGRjZCMzUiIHJ4PSI0Ii8+PHBhdGggZD0iTTMgM2g1djVIM1Yzem04IDBoNXY1SDExVjN6bTggOGg1djVoLTVWMTF6bS04IDBoNXY1SDExdjV6bS04IDBoNXY1SDNWMTF6bTggMGgydjJoLTJ2LTJ6IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==",
+      "sizes": "48x48",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0iI0ZGNkIzNSIgcng9IjQiLz48cGF0aCBkPSJNMyAzaDV2NUgzVjN6bTggMGg1djVIMTFWM3ptOCA4aDV2NWgtNVYxMXptLTggMGg1djVIMTF2NXptLTggMGg1djVIM1YxMXptOCAwaDJ2MmgtMnYtMnoiIGZpbGw9IndoaXRlIi8+PC9zdmc+",
+      "sizes": "192x192", 
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0iI0ZGNkIzNSIgcng9IjQiLz48cGF0aCBkPSJNMyAzaDV2NUgzVjN6bTggMGg1djVIMTFWM3ptOCA4aDV2NWgtNVYxMXptLTggMGg1djVIMTF2NXptLTggMGg1djVIM1YxMXptOCAwaDJ2MmgtMnYtMnoiIGZpbGw9IndoaXRlIi8+PC9zdmc+",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
-  "orientation": "portrait-primary"
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjU2OCIgdmlld0JveD0iMCAwIDMyMCA1NjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSI1NjgiIGZpbGw9IiNGQUZBRkEiLz48dGV4dCB4PSIxNjAiIHk9IjI4NCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE4IiBmaWxsPSIjMzMzIj5GaWxhbWVudERCIFNjcmVlbnNob3Q8L3RleHQ+PC9zdmc+",
+      "sizes": "320x568",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "FilamentDB Scanner Page"
+    }
+  ],
+  "features": [
+    "cross-origin-isolated"
+  ],
+  "prefer_related_applications": false
 }

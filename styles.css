@@ -1605,7 +1605,8 @@ label:has(svg) {
 
 .export-button,
 .import-button,
-.clear-all-button {
+.clear-all-button,
+.cloud-sync-button {
     background: var(--white);
     color: var(--gray-700);
     border: 1px solid var(--gray-200);
@@ -1618,7 +1619,8 @@ label:has(svg) {
 }
 
 .export-button:hover,
-.import-button:hover {
+.import-button:hover,
+.cloud-sync-button:hover {
     background: var(--gray-50);
     border-color: var(--primary);
     color: var(--primary);
@@ -1630,9 +1632,37 @@ label:has(svg) {
     color: var(--error);
 }
 
+/* Cloud sync button states */
+.cloud-sync-button.enabled {
+    background: #E6F7FF;
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.cloud-sync-button.enabled:hover {
+    background: #BAE7FF;
+}
+
+.cloud-sync-button.setup {
+    background: #FFF7E6;
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.cloud-sync-button.setup:hover {
+    background: #FFE7BA;
+}
+
+.cloud-sync-button.disabled {
+    background: var(--gray-100);
+    color: var(--gray-500);
+    border-color: var(--gray-300);
+}
+
 .export-button svg,
 .import-button svg,
 .clear-all-button svg,
+.cloud-sync-button svg,
 .generate-btn svg,
 .reset-btn svg,
 .download-btn svg,
@@ -1911,4 +1941,34 @@ label:has(svg) {
 .remove-filter:hover {
     background: rgba(255, 255, 255, 0.3);
     transform: scale(1.1);
+}
+
+/* Print Label Button Styles */
+.print-label-btn {
+    padding: var(--space-4) var(--space-6);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-family);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-bounce);
+    min-height: 48px;
+    box-shadow: var(--shadow-md);
+    background: var(--white);
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.print-label-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.print-label-btn svg {
+    width: 18px;
+    height: 18px;
 }

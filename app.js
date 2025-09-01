@@ -23,6 +23,7 @@ let currentStream = null;
 let isScanning = false;
 let cameras = [];
 let currentCameraIndex = 0;
+let currentFacingMode = 'environment'; // Start with rear camera
 const STORAGE_KEY = 'qrCodeEntries';
 
 fileInput.addEventListener('change', handleFileSelect);
@@ -35,7 +36,14 @@ closeCameraBtn.addEventListener('click', stopCamera);
 switchCameraButton.addEventListener('click', switchCamera);
 
 document.addEventListener('paste', handlePaste);
-document.addEventListener('DOMContentLoaded', loadRecentScans);
+document.addEventListener('DOMContentLoaded', () => {
+    loadRecentScans();
+    
+    // Initialize cloud storage if available
+    if (typeof CloudStorage !== 'undefined') {
+        window.cloudStorage = new CloudStorage();
+    }
+});
 
 pasteArea.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -305,10 +313,12 @@ async function startCamera() {
         // Get available cameras
         await getCameras();
         
-        // Request camera access
+        // Request camera access - always prefer rear camera for QR scanning
         const constraints = {
             video: {
-                facingMode: cameras.length > 0 ? { deviceId: cameras[currentCameraIndex].deviceId } : 'environment'
+                facingMode: currentFacingMode, // Use current facing mode
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             }
         };
         
@@ -331,13 +341,49 @@ async function startCamera() {
         
     } catch (error) {
         console.error('Error starting camera:', error);
+        
+        let errorMessage = 'Unable to access camera. ';
+        let suggestions = [];
+        
         if (error.name === 'NotAllowedError') {
-            showError('Camera access denied. Please allow camera access and try again.');
+            errorMessage = 'Camera access denied. ';
+            suggestions = [
+                'Allow camera permissions in your browser',
+                'Check device settings for camera permissions',
+                'Try refreshing the page and allowing camera access'
+            ];
         } else if (error.name === 'NotFoundError') {
-            showError('No camera found. Please make sure your device has a camera.');
+            errorMessage = 'No camera found. ';
+            suggestions = [
+                'Make sure your device has a camera',
+                'Check if camera is being used by another app',
+                'Try restarting your browser'
+            ];
+        } else if (error.name === 'NotSupportedError') {
+            errorMessage = 'Camera not supported. ';
+            suggestions = [
+                'This might be due to HTTP instead of HTTPS',
+                'Try using: npm run mobile (with HTTPS)',
+                'Use file upload instead of camera scanning'
+            ];
+        } else if (error.name === 'SecurityError') {
+            errorMessage = 'Camera access blocked by security policy. ';
+            suggestions = [
+                'HTTPS is required for camera access on mobile',
+                'Use: npm run mobile (enables HTTPS)',
+                'Accept the certificate warning when prompted'
+            ];
         } else {
-            showError('Unable to access camera. Please try again.');
+            suggestions = [
+                'Try using HTTPS: npm run mobile',
+                'Check camera permissions in browser settings',
+                'Use file upload as alternative'
+            ];
         }
+        
+        // Create detailed error message
+        const detailedError = errorMessage + '\n\nTroubleshooting:\n• ' + suggestions.join('\n• ');
+        showError(detailedError);
     }
 }
 
@@ -352,9 +398,8 @@ async function getCameras() {
 }
 
 async function switchCamera() {
-    if (cameras.length <= 1) return;
-    
-    currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+    // Toggle between front and rear camera
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
     
     // Stop current stream
     if (currentStream) {
@@ -365,18 +410,23 @@ async function switchCamera() {
     try {
         const constraints = {
             video: {
-                deviceId: cameras[currentCameraIndex].deviceId
+                facingMode: currentFacingMode,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             }
         };
         
         currentStream = await navigator.mediaDevices.getUserMedia(constraints);
         cameraVideo.srcObject = currentStream;
         
-        updateScanStatus('Switched camera - Scanning...');
+        const cameraType = currentFacingMode === 'environment' ? 'Rear' : 'Front';
+        updateScanStatus(`Switched to ${cameraType} camera - Scanning...`);
         
     } catch (error) {
         console.error('Error switching camera:', error);
         showError('Unable to switch camera.');
+        // Revert on failure
+        currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
     }
 }
 

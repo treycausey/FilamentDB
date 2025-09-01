@@ -113,6 +113,13 @@ function addToInventory(parsedData, options = {}) {
         
         console.log('Added to inventory:', parsedData);
         
+        // Auto-sync to cloud if available
+        if (typeof window !== 'undefined' && window.cloudStorage && window.cloudStorage.isReady()) {
+            window.cloudStorage.uploadData(entries).catch(err => 
+                console.warn('Cloud sync after add failed:', err)
+            );
+        }
+        
         if (onSuccess) {
             onSuccess(parsedData, entries);
         }

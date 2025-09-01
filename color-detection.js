@@ -519,7 +519,36 @@ class ColorDetector {
             
         } catch (error) {
             console.error('Error starting color detection:', error);
-            alert('Could not access camera. Please ensure camera permissions are granted.');
+            
+            let errorMessage = 'Could not access camera. ';
+            let suggestions = [];
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = 'Camera access denied. ';
+                suggestions = [
+                    'Allow camera permissions in your browser',
+                    'Try refreshing and allowing camera access'
+                ];
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'No camera found. ';
+                suggestions = ['Make sure your device has a camera'];
+            } else if (error.name === 'SecurityError' || error.name === 'NotSupportedError') {
+                errorMessage = 'Camera blocked by security policy. ';
+                suggestions = [
+                    'HTTPS is required for camera on mobile',
+                    'Use: npm run mobile (enables HTTPS)',
+                    'Accept certificate warning when prompted'
+                ];
+            } else {
+                suggestions = [
+                    'Try using HTTPS: npm run mobile',
+                    'Check camera permissions',
+                    'Manually enter color name instead'
+                ];
+            }
+            
+            const detailedMessage = errorMessage + '\n\n' + suggestions.join('\n');
+            alert(detailedMessage);
             this.closeModal();
         }
     }

@@ -37,6 +37,11 @@ colorDetectorBtn.addEventListener('click', startColorDetection);
 
 // Populate form from URL parameters (if coming from inventory)
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize cloud storage if available
+    if (typeof CloudStorage !== 'undefined') {
+        window.cloudStorage = new CloudStorage();
+    }
+    
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('manufacturer')) {
         manufacturerField.value = urlParams.get('manufacturer') || '';

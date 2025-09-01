@@ -6,6 +6,8 @@ const exportButton = document.getElementById('exportButton');
 const importButton = document.getElementById('importButton');
 const importFile = document.getElementById('importFile');
 const clearAllButton = document.getElementById('clearAllButton');
+const cloudSyncButton = document.getElementById('cloudSyncButton');
+const cloudSyncText = document.getElementById('cloudSyncText');
 const emptyState = document.getElementById('emptyState');
 const filterTags = document.getElementById('filterTags');
 
@@ -24,6 +26,8 @@ let tableSortField = null;
 let tableSortDirection = 'asc';
 const STORAGE_KEY = 'qrCodeEntries';
 
+// Cloud storage instance (use global window.cloudStorage for consistency)
+
 // Event Listeners
 searchInput.addEventListener('input', handleSearch);
 sortSelect.addEventListener('change', handleSort);
@@ -31,6 +35,7 @@ exportButton.addEventListener('click', exportEntries);
 importButton.addEventListener('click', () => importFile.click());
 importFile.addEventListener('change', handleImport);
 clearAllButton.addEventListener('click', clearAllEntries);
+cloudSyncButton.addEventListener('click', handleCloudSync);
 
 // View toggle
 document.querySelectorAll('.view-toggle').forEach(btn => {
@@ -44,7 +49,10 @@ document.querySelectorAll('.view-toggle').forEach(btn => {
 });
 
 // Initialize
-document.addEventListener('DOMContentLoaded', loadSavedEntries);
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedEntries();
+    initializeCloudStorage();
+});
 
 // Storage functions
 function getStoredEntries() {
@@ -462,4 +470,342 @@ function handleTableSort(field, headerElement) {
     
     // Sort and redisplay
     handleSort();
+}
+
+// ========================================
+// Cloud Storage Functions
+// ========================================
+
+// Initialize cloud storage
+function initializeCloudStorage() {
+    if (typeof CloudStorage !== 'undefined') {
+        window.cloudStorage = new CloudStorage();
+    }
+    updateCloudSyncButton();
+}
+
+// Handle cloud sync button click
+async function handleCloudSync() {
+    if (!window.cloudStorage || !window.cloudStorage.isReady()) {
+        showCloudSetupDialog();
+    } else {
+        // Show options for configured cloud storage
+        showCloudSyncOptions();
+    }
+}
+
+// Show cloud sync options when already configured
+function showCloudSyncOptions() {
+    const storageId = window.cloudStorage?.binId || 'Unknown';
+    const apiKey = window.cloudStorage?.apiKey || 'Unknown';
+    
+    // Use a more detailed dialog with three options
+    const choice = prompt(`Cloud Sync Menu
+
+Current Storage ID: ${storageId}
+
+Choose an option:
+1 = Sync now
+2 = Show sharing info for other devices  
+3 = Reconfigure/Reset
+
+Enter 1, 2, or 3:`);
+
+    if (choice === '1') {
+        // Sync now
+        performCloudSync();
+    } else if (choice === '2') {
+        // Show sharing info
+        showSharingInfo(apiKey, storageId);
+    } else if (choice === '3') {
+        // Show reconfigure options
+        showReconfigureDialog();
+    }
+}
+
+// Show sharing information for adding other devices
+function showSharingInfo(apiKey, storageId) {
+    if (apiKey === 'Unknown' || storageId === 'Unknown') {
+        alert('❌ Storage info not available.\n\nPlease sync first or reconfigure cloud storage.');
+        return;
+    }
+    
+    // Validate the storage ID looks correct
+    if (!storageId || storageId.length < 20) {
+        alert(`❌ Storage ID appears invalid: ${storageId}
+        
+This might be corrupted. Try:
+1. Sync first (option 1)
+2. Or reset and setup fresh (option 3)`);
+        return;
+    }
+    
+    const sharingCode = `${apiKey}|${storageId}`;
+    
+    // Show in a text area for easier copying
+    const textarea = document.createElement('textarea');
+    textarea.value = sharingCode;
+    textarea.style.position = 'fixed';
+    textarea.style.top = '50%';
+    textarea.style.left = '50%';
+    textarea.style.transform = 'translate(-50%, -50%)';
+    textarea.style.width = '80%';
+    textarea.style.height = '100px';
+    textarea.style.zIndex = '10000';
+    textarea.style.fontSize = '12px';
+    textarea.style.fontFamily = 'monospace';
+    textarea.style.border = '2px solid #FF6B35';
+    textarea.style.padding = '10px';
+    textarea.style.borderRadius = '8px';
+    
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.focus();
+    
+    // Add close button to textarea
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ Close';
+    closeBtn.style.position = 'fixed';
+    closeBtn.style.top = 'calc(50% + 60px)';
+    closeBtn.style.left = '50%';
+    closeBtn.style.transform = 'translateX(-50%)';
+    closeBtn.style.zIndex = '10001';
+    closeBtn.style.background = '#FF6B35';
+    closeBtn.style.color = 'white';
+    closeBtn.style.border = 'none';
+    closeBtn.style.padding = '10px 20px';
+    closeBtn.style.borderRadius = '8px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '14px';
+    closeBtn.style.fontWeight = 'bold';
+    
+    closeBtn.onclick = () => {
+        document.body.removeChild(textarea);
+        document.body.removeChild(closeBtn);
+    };
+    
+    document.body.appendChild(closeBtn);
+    
+    alert(`📱 Sharing Code Ready!
+
+The sharing code is selected in the text box.
+Copy it exactly as shown (Ctrl+C / Cmd+C).
+
+API Key: ${apiKey.substring(0, 15)}...
+Storage ID: ${storageId}
+
+Click OK, then copy the code. Click the ✕ Close button when done.`);
+}
+
+// Show reconfigure dialog
+function showReconfigureDialog() {
+    const option = confirm(`Reconfigure Cloud Sync
+
+• OK = Reset and setup new storage
+• Cancel = Connect to different storage
+
+Choose OK to start fresh, or Cancel to connect to existing storage.`);
+
+    if (option) {
+        // Reset and start fresh
+        resetCloudStorage();
+    } else {
+        // Connect to existing storage
+        showAdditionalDeviceSetup();
+    }
+}
+
+// Reset cloud storage settings
+function resetCloudStorage() {
+    const confirmed = confirm(`⚠️ Reset Cloud Storage?
+
+This will:
+• Clear your cloud sync settings
+• Keep your local inventory safe
+• Allow you to setup new cloud storage
+
+Your local data will NOT be deleted.
+
+Continue?`);
+
+    if (confirmed) {
+        // Clear cloud storage settings
+        localStorage.removeItem('cloudStorageSettings');
+        
+        // Reinitialize cloud storage
+        if (typeof CloudStorage !== 'undefined') {
+            window.cloudStorage = new CloudStorage();
+        }
+        updateCloudSyncButton();
+        
+        alert('✅ Cloud storage reset successfully!\n\nYou can now set up cloud sync again.');
+        
+        // Show setup dialog
+        setTimeout(() => showCloudSetupDialog(), 500);
+    }
+}
+
+// Show cloud storage setup dialog
+function showCloudSetupDialog() {
+    const setupType = confirm(`Set up Cloud Sync
+
+FilamentDB can sync your inventory across devices using JSONBin.io (free service).
+
+Choose setup type:
+• OK = First device (create new storage)
+• Cancel = Additional device (use existing storage)
+
+Click OK for first device, Cancel for additional devices.`);
+
+    if (setupType) {
+        // First device - create new storage
+        showFirstDeviceSetup();
+    } else {
+        // Additional device - use existing storage
+        showAdditionalDeviceSetup();
+    }
+}
+
+// Setup for first device (creates new storage)
+function showFirstDeviceSetup() {
+    const apiKey = prompt(`First Device Setup
+
+Steps:
+1. Go to https://jsonbin.io and create a free account
+2. Go to your profile and copy your API Key
+3. Paste your API Key below:
+
+This will create new cloud storage for your inventory.`);
+
+    if (apiKey && apiKey.trim()) {
+        setupCloudStorage(apiKey.trim());
+    }
+}
+
+// Setup for additional devices (uses existing storage)
+function showAdditionalDeviceSetup() {
+    const input = prompt(`Additional Device Setup
+
+You need:
+1. Your JSONBin.io API Key
+2. Your Storage ID (get this from your first device)
+
+Enter in this format:
+API_KEY|STORAGE_ID
+
+Example:
+$2b$10$abc123...|64f5a9b2e8c7d6...`);
+
+    if (input && input.trim()) {
+        const parts = input.trim().split('|');
+        if (parts.length === 2) {
+            const apiKey = parts[0].trim();
+            const binId = parts[1].trim();
+            
+            // Validate inputs
+            if (apiKey.length < 10) {
+                alert('❌ API Key seems too short. Please check your API key.');
+                return;
+            }
+            
+            if (binId.length < 10) {
+                alert('❌ Storage ID seems too short. Please check your Storage ID.');
+                return;
+            }
+            
+            setupCloudStorage(apiKey, binId);
+        } else {
+            alert('❌ Invalid format. Please use: API_KEY|STORAGE_ID\n\nMake sure there is exactly one | character separating them.');
+        }
+    }
+}
+
+// Setup cloud storage with API key
+async function setupCloudStorage(apiKey, binId = null) {
+    try {
+        cloudSyncText.textContent = 'Setting up...';
+        cloudSyncButton.disabled = true;
+        
+        await window.cloudStorage.setup(apiKey, binId);
+        
+        // Initial sync after setup
+        await performCloudSync();
+        
+        // Show setup success with sharing info
+        if (!binId) {
+            // New storage created - show sharing info
+            const storageId = window.cloudStorage.binId;
+            alert(`✅ Cloud sync setup successful!
+
+Your inventory is now synced across all devices.
+
+📱 To add other devices:
+1. On other devices, click "Setup Cloud Sync" 
+2. Choose "Additional device"
+3. Enter: ${apiKey}|${storageId}
+
+💾 Save this info somewhere safe for future devices!`);
+        } else {
+            // Existing storage connected
+            alert('✅ Connected to existing cloud storage!\n\nYour inventory is now synced with your other devices.');
+        }
+        
+    } catch (error) {
+        console.error('Cloud storage setup failed:', error);
+        alert(`❌ Setup failed: ${error.message}`);
+    } finally {
+        updateCloudSyncButton();
+        cloudSyncButton.disabled = false;
+    }
+}
+
+// Perform cloud sync
+async function performCloudSync() {
+    try {
+        cloudSyncText.textContent = 'Syncing...';
+        cloudSyncButton.disabled = true;
+        
+        const result = await window.cloudStorage.syncData();
+        
+        if (result.success) {
+            // Reload inventory after sync
+            loadSavedEntries();
+            updateStats();
+            
+            cloudSyncText.textContent = `✅ Synced (${result.mergedCount} items)`;
+            setTimeout(() => updateCloudSyncButton(), 3000);
+            
+            // Show detailed sync info if items were merged
+            if (result.localCount !== result.mergedCount || result.cloudCount !== result.mergedCount) {
+                alert(`✅ Sync successful!\n\nLocal: ${result.localCount} items\nCloud: ${result.cloudCount} items\nTotal: ${result.mergedCount} items`);
+            }
+        } else {
+            throw new Error(result.message);
+        }
+        
+    } catch (error) {
+        console.error('Cloud sync failed:', error);
+        cloudSyncText.textContent = '❌ Sync failed';
+        setTimeout(() => updateCloudSyncButton(), 3000);
+        
+        alert(`❌ Sync failed: ${error.message}\n\nYour local data is safe. Try again later.`);
+    } finally {
+        cloudSyncButton.disabled = false;
+    }
+}
+
+// Update cloud sync button appearance
+function updateCloudSyncButton() {
+    const status = window.cloudStorage?.getStatus();
+    
+    if (!status || !status.configured) {
+        cloudSyncText.textContent = 'Setup Cloud Sync';
+        cloudSyncButton.className = 'cloud-sync-button setup';
+    } else if (status.enabled) {
+        cloudSyncText.textContent = 'Cloud Sync';
+        cloudSyncButton.className = 'cloud-sync-button enabled';
+    } else {
+        cloudSyncText.textContent = 'Cloud Sync (Disabled)';
+        cloudSyncButton.className = 'cloud-sync-button disabled';
+    }
 }
