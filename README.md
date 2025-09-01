@@ -48,11 +48,12 @@ FilamentDB is a web-based inventory management system specifically designed for 
 ### 📦 Inventory Management  
 - Complete filament database with **285+ supported colors**
 - Smart search and filtering
-- Sort by manufacturer, material, color, or date
+- Default rainbow color sort (ROYGBIV) with additional date/manufacturer/material sorts
 - Statistics dashboard (total entries, unique colors, materials)
 - Bulk operations (export CSV, import CSV, clear all)
-- **Grid and list view modes**
+- **Grid and list view modes** (List is default)
 - Tag-based organization with click-to-filter
+ - Click a color swatch to edit the color with a native color picker (stores closest known color name when possible)
 
 ### ☁️ **NEW: Cross-Device Cloud Sync**
 - **Sync inventory across multiple devices** using JSONBin.io
@@ -132,35 +133,33 @@ Create professional QR codes for your filament spools.
 Comprehensive filament collection management.
 
 **Features:**
-- Grid and list view modes
+- Grid and list view modes (List default)
 - Advanced search and filtering
-- Sort by any field
+- Default rainbow color sort (ROYGBIV), with additional sort options
 - Statistics dashboard
 - Export/import functionality (CSV format)
 - Tag management with click-to-filter
-- **Cloud sync integration** for cross-device access
+- **Cloud sync integration** for cross-device access (configure in Settings)
 
 ### ☁️ Cloud Sync Setup
 
-**First Device Setup:**
+All cloud configuration now lives in the dedicated Settings page.
+
+**First Device (create storage):**
 1. Go to [JSONBin.io](https://jsonbin.io) and create a free account
 2. Copy your API key from your profile
-3. In FilamentDB inventory page, click "Setup Cloud Sync"
-4. Choose "First device" and paste your API key
-5. Save the sharing code shown for other devices
+3. Open Settings → Cloud Sync → "Setup (New Storage)"
+4. Paste your API key. The app creates storage and shows a sharing code
 
-**Additional Device Setup:**
-1. Click "Setup Cloud Sync" on new device
-2. Choose "Additional device"
-3. Enter the sharing code from your first device
-4. Your inventory will sync automatically
+**Additional Device (join existing):**
+1. On your first device, copy the sharing code from Settings → "Show Sharing Info"
+2. On the new device, open Settings → "Setup (Additional Device)"
+3. Paste the sharing code (`API_KEY|STORAGE_ID`) and connect
 
-**Cloud Sync Features:**
-- **Automatic sync** when adding items via scanner or generator
-- **Manual sync** button in inventory page
-- **Smart merging** prevents duplicates
-- **Reset/reconfigure** options available
-- **Private & secure** - only you have access to your data
+**Usage:**
+- Inventory page "Cloud Sync" button runs Sync Now if configured, or opens Settings if not
+- Smart merging prevents duplicates across devices
+- Reset/disable/toggle available in Settings
 
 ### 🛠️ Data Format
 
@@ -251,9 +250,11 @@ filamentdb/
 ├── index.html              # Scanner page (main entry)
 ├── generator.html           # QR code generator
 ├── inventory.html           # Inventory management
+├── settings.html            # Settings (Cloud Sync, exports)
 ├── app.js                   # Scanner functionality
 ├── generator.js             # Generator functionality  
 ├── inventory.js             # Inventory functionality
+├── settings.js              # Settings page logic
 ├── shared-qr-processing.js  # Shared QR utilities
 ├── cloud-storage.js         # Cloud sync functionality
 ├── color-detection.js       # Camera color detection

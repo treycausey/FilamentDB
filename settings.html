@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - FilamentDB</title>
+    <meta name="theme-color" content="#FF6B35">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="FilamentDB">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .settings-section { margin: 24px 0; }
+        .settings-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 16px; margin-bottom: 16px; }
+        .settings-card h3 { margin: 0 0 8px 0; }
+        .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .settings-button { background: var(--primary); color: var(--white); border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .secondary-button { background: var(--gray-200); color: var(--gray-900); }
+        .danger-button { background: #e53935; }
+        .switch { display: inline-flex; align-items: center; gap: 8px; }
+        .status-pill { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--gray-200); color: var(--gray-900); }
+        .status-pill.ok { background: #e6f7f1; color: #0f8c66; }
+        .status-pill.warn { background: #fff4e5; color: #9a5b00; }
+        .muted { color: var(--gray-600); font-size: 0.9rem; }
+    </style>
+    
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-header">
+            <h1>FilamentDB</h1>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Scanner</a>
+                <a href="inventory.html" class="nav-link">Inventory</a>
+                <a href="generator.html" class="nav-link">Generator</a>
+                <a href="settings.html" class="nav-link active">Settings</a>
+            </div>
+        </nav>
+
+        <section class="settings-section">
+            <div class="settings-card">
+                <h3>Cloud Sync</h3>
+                <div class="muted" id="cloudStatusText">Loading status…</div>
+                <div style="margin-top:8px;">
+                    <span id="cloudConfiguredPill" class="status-pill">Not Configured</span>
+                    <span id="cloudEnabledPill" class="status-pill">Disabled</span>
+                </div>
+                <div class="settings-actions" style="margin-top:12px;">
+                    <button class="settings-button" id="syncNowBtn">Sync Now</button>
+                    <button class="settings-button secondary-button" id="showSharingBtn">Show Sharing Info</button>
+                    <button class="settings-button secondary-button" id="setupNewBtn">Setup (New Storage)</button>
+                    <button class="settings-button secondary-button" id="connectExistingBtn">Setup (Additional Device)</button>
+                    <button class="settings-button danger-button" id="resetSyncBtn">Reset Cloud Sync</button>
+                </div>
+                <div style="margin-top:12px;" class="switch">
+                    <input type="checkbox" id="enableCloudToggle">
+                    <label for="enableCloudToggle">Enable Cloud Sync</label>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h3>App</h3>
+                <div class="settings-actions">
+                    <button class="settings-button secondary-button" id="exportJsonBtn">Export Inventory (JSON)</button>
+                    <button class="settings-button secondary-button" id="exportCsvBtn">Export Inventory (CSV)</button>
+                    <button class="settings-button danger-button" id="clearAllBtn">Clear All Inventory</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="cloud-storage.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>
+

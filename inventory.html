@@ -24,6 +24,7 @@ See LICENSES.md for full license information
                 <a href="index.html" class="nav-link">Scanner</a>
                 <a href="inventory.html" class="nav-link active">Inventory</a>
                 <a href="generator.html" class="nav-link">Generator</a>
+                <a href="settings.html" class="nav-link">Settings</a>
             </div>
         </nav>
         
@@ -95,6 +96,7 @@ See LICENSES.md for full license information
                 <div class="sort-box">
                     <label for="sortSelect" class="sort-label">Sort by:</label>
                     <select id="sortSelect" class="sort-select">
+                        <option value="color-rainbow" selected>Color (Rainbow)</option>
                         <option value="date-desc">Date (Newest First)</option>
                         <option value="date-asc">Date (Oldest First)</option>
                         <option value="manufacturer">Manufacturer (A-Z)</option>
@@ -147,7 +149,7 @@ See LICENSES.md for full license information
         <div class="filter-tags" id="filterTags"></div>
         
         <div class="entries-view-toggle">
-            <button class="view-toggle active" data-view="grid">
+            <button class="view-toggle" data-view="grid">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="3" width="7" height="7"></rect>
                     <rect x="14" y="3" width="7" height="7"></rect>
@@ -156,7 +158,7 @@ See LICENSES.md for full license information
                 </svg>
                 Grid View
             </button>
-            <button class="view-toggle" data-view="list">
+            <button class="view-toggle active" data-view="list">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="8" y1="6" x2="21" y2="6"></line>
                     <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -169,7 +171,7 @@ See LICENSES.md for full license information
             </button>
         </div>
         
-        <div id="entriesList" class="entries-list grid-view"></div>
+        <div id="entriesList" class="entries-list list-view"></div>
         
         <div id="emptyState" class="empty-state hidden">
             <div class="empty-icon">
@@ -186,6 +188,7 @@ See LICENSES.md for full license information
         </div>
     </div>
     
+    <script src="color-detection.js"></script>
     <script src="color-utils.js"></script>
     <script src="cloud-storage.js"></script>
     <script src="inventory.js"></script>

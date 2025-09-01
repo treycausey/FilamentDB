@@ -20,11 +20,13 @@ const uniqueColorsEl = document.getElementById('uniqueColors');
 // State
 let allEntries = [];
 let filteredEntries = [];
-let currentView = 'grid';
+let currentView = 'list';
 let activeFilters = new Set();
 let tableSortField = null;
 let tableSortDirection = 'asc';
 const STORAGE_KEY = 'qrCodeEntries';
+let colorPickerInput = null;
+let colorInputSupported = null;
 
 // Cloud storage instance (use global window.cloudStorage for consistency)
 
@@ -40,9 +42,10 @@ cloudSyncButton.addEventListener('click', handleCloudSync);
 // View toggle
 document.querySelectorAll('.view-toggle').forEach(btn => {
     btn.addEventListener('click', (e) => {
+        const target = e.currentTarget; // ensure button element
         document.querySelectorAll('.view-toggle').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        currentView = e.target.dataset.view;
+        target.classList.add('active');
+        currentView = target.dataset.view;
         entriesList.className = `entries-list ${currentView}-view`;
         displayEntries(filteredEntries);
     });
@@ -52,6 +55,7 @@ document.querySelectorAll('.view-toggle').forEach(btn => {
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedEntries();
     initializeCloudStorage();
+    setupColorPicker();
 });
 
 // Storage functions
@@ -211,6 +215,17 @@ function displayEntries(entries) {
         });
     });
     
+    // Add color picker listeners on swatches
+    document.querySelectorAll('.color-indicator').forEach(sw => {
+        sw.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const container = e.target.closest('[data-id]');
+            const row = e.target.closest('tr');
+            const id = container?.dataset.id || row?.dataset.id;
+            if (id) openColorPickerForEntry(id);
+        });
+    });
+    
     // Add click listeners for filtering
     document.querySelectorAll('.manufacturer-badge').forEach(badge => {
         badge.addEventListener('click', (e) => {
@@ -262,6 +277,17 @@ function sortEntries(entries) {
     const sortValue = sortSelect.value;
     
     switch(sortValue) {
+        case 'color-rainbow':
+            entries.sort((a, b) => {
+                const ha = ColorUtils.hueFromColor(a.Color);
+                const hb = ColorUtils.hueFromColor(b.Color);
+                if (ha === hb) {
+                    // fallback to alphabetical when hues equal or Infinity
+                    return (a.Color || '').localeCompare(b.Color || '');
+                }
+                return ha - hb;
+            });
+            break;
         case 'date-desc':
             entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             break;
@@ -370,6 +396,125 @@ function deleteEntry(id) {
     if (!confirm('Are you sure you want to delete this entry?')) return;
     
     allEntries = allEntries.filter(entry => entry.id !== id);
+    saveToStorage(allEntries);
+    loadSavedEntries();
+}
+
+// ===============================
+// Color Picker Integration
+// ===============================
+
+function setupColorPicker() {
+    colorInputSupported = isColorInputSupported();
+    colorPickerInput = document.createElement('input');
+    colorPickerInput.setAttribute('type', 'color');
+    colorPickerInput.id = 'colorPickerHiddenInput';
+    // Keep it technically present and focusable for mobile Safari
+    colorPickerInput.style.position = 'fixed';
+    colorPickerInput.style.opacity = '0';
+    colorPickerInput.style.pointerEvents = 'none';
+    colorPickerInput.style.width = '1px';
+    colorPickerInput.style.height = '1px';
+    colorPickerInput.style.bottom = '10px';
+    colorPickerInput.style.right = '10px';
+    colorPickerInput.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(colorPickerInput);
+
+    colorPickerInput.addEventListener('change', (e) => {
+        const id = colorPickerInput.dataset.entryId;
+        if (!id) return;
+        const hex = e.target.value; // Always #RRGGBB
+        const entry = allEntries.find(en => en.id === id);
+        if (!entry) return;
+
+        const rgb = ColorUtils.hexToRgb(hex);
+        let newColor = hex.toUpperCase();
+        if (rgb) {
+            const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
+            if (closest && closest !== 'Unknown') {
+                newColor = closest;
+            }
+        }
+        entry.Color = newColor;
+        saveToStorage(allEntries);
+        loadSavedEntries();
+        // cleanup id so subsequent opens don't accidentally reuse
+        delete colorPickerInput.dataset.entryId;
+    });
+}
+
+function openColorPickerForEntry(id) {
+    const entry = allEntries.find(en => en.id === id);
+    if (!entry || !colorPickerInput) return;
+    const current = getColorHex(entry.Color);
+    const hex = normalizeToHex(current);
+    if (hex) {
+        colorPickerInput.value = hex;
+    }
+    colorPickerInput.dataset.entryId = id;
+    if (colorInputSupported) {
+        // Attempt to open native picker
+        colorPickerInput.focus();
+        colorPickerInput.click();
+    } else {
+        // Fallback prompt for browsers without native color input
+        fallbackColorPrompt(id, hex);
+    }
+}
+
+function normalizeToHex(colorStr) {
+    if (!colorStr) return '#000000';
+    const s = ('' + colorStr).trim();
+    if (/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(s)) {
+        // Expand 3-digit hex to 6-digit
+        if (s.length === 4) {
+            const r = s[1], g = s[2], b = s[3];
+            return ('#' + r + r + g + g + b + b).toUpperCase();
+        }
+        return s.toUpperCase();
+    }
+    const m = s.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (m) {
+        const r = parseInt(m[1], 10), g = parseInt(m[2], 10), b = parseInt(m[3], 10);
+        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
+    }
+    // Fallback: try computing from name then convert if rgb
+    const computed = ColorUtils.getColorHex(s);
+    if (/^#/.test(computed)) return computed.toUpperCase();
+    const m2 = computed.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (m2) {
+        const r = parseInt(m2[1], 10), g = parseInt(m2[2], 10), b = parseInt(m2[3], 10);
+        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
+    }
+    return '#000000';
+}
+
+function isColorInputSupported() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'color');
+    const supported = input.type === 'color';
+    return supported;
+}
+
+function fallbackColorPrompt(id, initialHex) {
+    const current = allEntries.find(e => e.id === id);
+    const currentLabel = current ? current.Color : '';
+    const val = prompt('Enter a color (hex like #FF8800 or name):', initialHex || currentLabel || '#FF6B35');
+    if (!val) return; // canceled
+    let newDisplay = val.trim();
+    // Normalize value
+    if (/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(newDisplay)) {
+        const hex = normalizeToHex(newDisplay);
+        const rgb = ColorUtils.hexToRgb(hex);
+        if (rgb) {
+            const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
+            if (closest && closest !== 'Unknown') newDisplay = closest;
+            else newDisplay = hex.toUpperCase();
+        }
+    }
+    const entry = allEntries.find(e => e.id === id);
+    if (!entry) return;
+    entry.Color = newDisplay;
     saveToStorage(allEntries);
     loadSavedEntries();
 }
@@ -532,41 +677,15 @@ function initializeCloudStorage() {
 // Handle cloud sync button click
 async function handleCloudSync() {
     if (!window.cloudStorage || !window.cloudStorage.isReady()) {
-        showCloudSetupDialog();
-    } else {
-        // Show options for configured cloud storage
-        showCloudSyncOptions();
+        // Not configured: take user to Settings to configure
+        window.location.href = 'settings.html';
+        return;
     }
+    // Configured: run sync immediately
+    await performCloudSync();
 }
 
-// Show cloud sync options when already configured
-function showCloudSyncOptions() {
-    const storageId = window.cloudStorage?.binId || 'Unknown';
-    const apiKey = window.cloudStorage?.apiKey || 'Unknown';
-    
-    // Use a more detailed dialog with three options
-    const choice = prompt(`Cloud Sync Menu
-
-Current Storage ID: ${storageId}
-
-Choose an option:
-1 = Sync now
-2 = Show sharing info for other devices  
-3 = Reconfigure/Reset
-
-Enter 1, 2, or 3:`);
-
-    if (choice === '1') {
-        // Sync now
-        performCloudSync();
-    } else if (choice === '2') {
-        // Show sharing info
-        showSharingInfo(apiKey, storageId);
-    } else if (choice === '3') {
-        // Show reconfigure options
-        showReconfigureDialog();
-    }
-}
+// Legacy cloud sync options menu removed (use Settings page instead)
 
 // Show sharing information for adding other devices
 function showSharingInfo(apiKey, storageId) {
@@ -643,52 +762,10 @@ Click OK, then copy the code. Click the ✕ Close button when done.`);
 }
 
 // Show reconfigure dialog
-function showReconfigureDialog() {
-    const option = confirm(`Reconfigure Cloud Sync
-
-• OK = Reset and setup new storage
-• Cancel = Connect to different storage
-
-Choose OK to start fresh, or Cancel to connect to existing storage.`);
-
-    if (option) {
-        // Reset and start fresh
-        resetCloudStorage();
-    } else {
-        // Connect to existing storage
-        showAdditionalDeviceSetup();
-    }
-}
+function showReconfigureDialog() { window.location.href = 'settings.html'; }
 
 // Reset cloud storage settings
-function resetCloudStorage() {
-    const confirmed = confirm(`⚠️ Reset Cloud Storage?
-
-This will:
-• Clear your cloud sync settings
-• Keep your local inventory safe
-• Allow you to setup new cloud storage
-
-Your local data will NOT be deleted.
-
-Continue?`);
-
-    if (confirmed) {
-        // Clear cloud storage settings
-        localStorage.removeItem('cloudStorageSettings');
-        
-        // Reinitialize cloud storage
-        if (typeof CloudStorage !== 'undefined') {
-            window.cloudStorage = new CloudStorage();
-        }
-        updateCloudSyncButton();
-        
-        alert('✅ Cloud storage reset successfully!\n\nYou can now set up cloud sync again.');
-        
-        // Show setup dialog
-        setTimeout(() => showCloudSetupDialog(), 500);
-    }
-}
+// resetCloudStorage moved to Settings workflow
 
 // Show cloud storage setup dialog
 function showCloudSetupDialog() {
@@ -712,58 +789,10 @@ Click OK for first device, Cancel for additional devices.`);
 }
 
 // Setup for first device (creates new storage)
-function showFirstDeviceSetup() {
-    const apiKey = prompt(`First Device Setup
-
-Steps:
-1. Go to https://jsonbin.io and create a free account
-2. Go to your profile and copy your API Key
-3. Paste your API Key below:
-
-This will create new cloud storage for your inventory.`);
-
-    if (apiKey && apiKey.trim()) {
-        setupCloudStorage(apiKey.trim());
-    }
-}
+function showFirstDeviceSetup() { window.location.href = 'settings.html'; }
 
 // Setup for additional devices (uses existing storage)
-function showAdditionalDeviceSetup() {
-    const input = prompt(`Additional Device Setup
-
-You need:
-1. Your JSONBin.io API Key
-2. Your Storage ID (get this from your first device)
-
-Enter in this format:
-API_KEY|STORAGE_ID
-
-Example:
-$2b$10$abc123...|64f5a9b2e8c7d6...`);
-
-    if (input && input.trim()) {
-        const parts = input.trim().split('|');
-        if (parts.length === 2) {
-            const apiKey = parts[0].trim();
-            const binId = parts[1].trim();
-            
-            // Validate inputs
-            if (apiKey.length < 10) {
-                alert('❌ API Key seems too short. Please check your API key.');
-                return;
-            }
-            
-            if (binId.length < 10) {
-                alert('❌ Storage ID seems too short. Please check your Storage ID.');
-                return;
-            }
-            
-            setupCloudStorage(apiKey, binId);
-        } else {
-            alert('❌ Invalid format. Please use: API_KEY|STORAGE_ID\n\nMake sure there is exactly one | character separating them.');
-        }
-    }
-}
+function showAdditionalDeviceSetup() { window.location.href = 'settings.html'; }
 
 // Setup cloud storage with API key
 async function setupCloudStorage(apiKey, binId = null) {

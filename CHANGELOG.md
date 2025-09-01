@@ -2,6 +2,24 @@
 
 All notable changes to FilamentDB will be documented in this file.
 
+## [2.1.0] - 2025-09-01
+
+### UI/UX Improvements
+- Inventory: Default view is now List; added compact toolbar layout for search/sort/actions
+- Inventory: Stats cards reduced in size to save vertical space
+- Inventory: Grid/List toggle spacing fixed above entries
+- Generator: Primary/secondary action buttons restyled to match app button system
+
+### Features
+- Inventory: Click a color swatch to edit via native color picker; saves closest known color name or hex fallback
+- Sorting: Default inventory sort is now rainbow (ROYGBIV) using hue; greyscale colors sort after chromatic ones
+- Settings: New `settings.html` consolidates Cloud Sync setup, sharing info, reset/toggle, and export/clear utilities
+- Cloud Sync button on Inventory now performs immediate sync if configured, or opens Settings otherwise
+
+### Code Cleanup
+- Moved legacy inventory-page Cloud Sync setup flows to Settings (inventory button only syncs now)
+- Minor CSS refactors for consistency across controls
+
 ## [2.0.0] - 2024-12-01
 
 ### 🚀 Major New Features

@@ -68,7 +68,7 @@ FilamentDB now includes comprehensive, accurate, and up-to-date documentation co
 | Feature | Documentation Status | Implementation Status |
 |---------|---------------------|----------------------|
 | **Rear Camera Priority** | ✅ Documented in README/Troubleshooting | ✅ Implemented (`facingMode: 'environment'`) |
-| **Cloud Sync Setup** | ✅ Complete guide in README/API | ✅ Full CloudStorage class |
+| **Cloud Sync Setup** | ✅ Settings page workflow in README/API | ✅ Full CloudStorage class + settings.html |
 | **Auto-Sync** | ✅ Technical details in API.md | ✅ Implemented in shared-qr-processing.js |
 | **Multi-device Sharing** | ✅ Step-by-step in README | ✅ Sharing code generation/parsing |
 | **Error Handling** | ✅ Comprehensive troubleshooting | ✅ Try/catch blocks, user feedback |
