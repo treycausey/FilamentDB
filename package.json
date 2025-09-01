@@ -19,5 +19,8 @@
   "license": "GPL-3.0-or-later",
   "devDependencies": {
     "live-server": "^1.2.2"
+  },
+  "dependencies": {
+    "bpac-js": "^2.2.0"
   }
 }
