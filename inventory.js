@@ -20,6 +20,8 @@ let allEntries = [];
 let filteredEntries = [];
 let currentView = 'grid';
 let activeFilters = new Set();
+let tableSortField = null;
+let tableSortDirection = 'asc';
 const STORAGE_KEY = 'qrCodeEntries';
 
 // Event Listeners
@@ -124,12 +126,12 @@ function displayEntries(entries) {
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th>Manufacturer</th>
-                        <th>Material</th>
-                        <th>Color</th>
-                        <th>Temp1</th>
-                        <th>Temp2</th>
-                        <th>Date</th>
+                        <th data-sort="manufacturer">Manufacturer</th>
+                        <th data-sort="material">Material</th>
+                        <th data-sort="color">Color</th>
+                        <th data-sort="temp1">Temp1</th>
+                        <th data-sort="temp2">Temp2</th>
+                        <th data-sort="date">Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -155,6 +157,14 @@ function displayEntries(entries) {
                 </tbody>
             </table>
         `;
+        
+        // Add sorting listeners to table headers
+        document.querySelectorAll('.entries-table th[data-sort]').forEach(th => {
+            th.addEventListener('click', (e) => {
+                const sortField = e.target.dataset.sort;
+                handleTableSort(sortField, e.target);
+            });
+        });
     }
     
     // Add delete listeners
@@ -397,4 +407,59 @@ function handleImport(e) {
     
     // Reset file input
     e.target.value = '';
+}
+
+// Table header sorting function
+function handleTableSort(field, headerElement) {
+    // Remove sorted classes from all headers
+    document.querySelectorAll('.entries-table th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+    });
+    
+    // Toggle sort direction if clicking same field
+    if (tableSortField === field) {
+        tableSortDirection = tableSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        tableSortField = field;
+        tableSortDirection = 'asc';
+    }
+    
+    // Add appropriate class to current header
+    headerElement.classList.add(`sorted-${tableSortDirection}`);
+    
+    // Map field names to sort values
+    const sortMap = {
+        'manufacturer': tableSortDirection === 'asc' ? 'manufacturer' : 'manufacturer-desc',
+        'material': tableSortDirection === 'asc' ? 'material' : 'material-desc',
+        'color': tableSortDirection === 'asc' ? 'color' : 'color-desc',
+        'temp1': tableSortDirection === 'asc' ? 'temp1' : 'temp1-desc',
+        'temp2': tableSortDirection === 'asc' ? 'temp2' : 'temp2-desc',
+        'date': tableSortDirection === 'asc' ? 'date-asc' : 'date-desc'
+    };
+    
+    // Update the sort select to match (if exists)
+    if (sortSelect) {
+        const mappedValue = sortMap[field];
+        if (mappedValue) {
+            // Check if the option exists
+            const hasOption = Array.from(sortSelect.options).some(opt => opt.value === mappedValue);
+            if (hasOption) {
+                sortSelect.value = mappedValue;
+            } else {
+                // Use a simpler mapping for existing options
+                const simpleMap = {
+                    'manufacturer': 'manufacturer',
+                    'material': 'material', 
+                    'color': 'color',
+                    'temp1': 'temp1',
+                    'temp2': 'temp2',
+                    'date': tableSortDirection === 'asc' ? 'date-asc' : 'date-desc'
+                };
+                sortSelect.value = simpleMap[field] || 'date-desc';
+            }
+        }
+    }
+    
+    // Sort and redisplay
+    handleSort();
 }

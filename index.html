@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude QR Code Reader</title>
-    <meta name="theme-color" content="#667eea">
+    <title>FilamentDB</title>
+    <meta name="theme-color" content="#FF6B35">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="QR Scanner">
+    <meta name="apple-mobile-web-app-title" content="FilamentDB">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <nav class="nav-header">
-            <h1>Claude QR Code Reader</h1>
+            <h1>FilamentDB</h1>
             <div class="nav-links">
                 <a href="index.html" class="nav-link active">Scanner</a>
                 <a href="inventory.html" class="nav-link">Inventory</a>
@@ -27,10 +27,11 @@
                 <div class="upload-box">
                     <input type="file" id="fileInput" accept="image/*" hidden>
                     <label for="fileInput" class="upload-button">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <polyline points="17,8 12,3 7,8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
+                            <circle cx="12" cy="3" r="1" fill="currentColor"></circle>
                         </svg>
                         <span>Choose File</span>
                     </label>
@@ -38,9 +39,11 @@
 
                 <div class="camera-box">
                     <button id="cameraButton" class="camera-button">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
                             <circle cx="12" cy="13" r="4"></circle>
+                            <circle cx="12" cy="13" r="2" fill="currentColor" opacity="0.3"></circle>
+                            <path d="m9 9 3 3 3-3" stroke-width="1" opacity="0.5"></path>
                         </svg>
                         <span>Scan with Camera</span>
                     </button>
@@ -48,9 +51,12 @@
                 
                 <div class="paste-box">
                     <button id="pasteButton" class="paste-button">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            <rect x="11" y="11" width="3" height="2" fill="currentColor" opacity="0.3" rx="0.5"></rect>
+                            <rect x="11" y="14" width="5" height="1.5" fill="currentColor" opacity="0.2" rx="0.5"></rect>
+                            <rect x="11" y="16" width="4" height="1.5" fill="currentColor" opacity="0.2" rx="0.5"></rect>
                         </svg>
                         <span>Paste from Clipboard</span>
                     </button>

@@ -1,11 +1,11 @@
 {
-  "name": "Claude QR Code Reader",
-  "short_name": "QR Scanner",
-  "description": "Scan QR codes for filament inventory management",
+  "name": "FilamentDB",
+  "short_name": "FilamentDB",
+  "description": "Modern filament inventory management system",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#667eea",
-  "theme_color": "#667eea",
+  "background_color": "#FAFAFA",
+  "theme_color": "#FF6B35",
   "icons": [
     {
       "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0iIzY2N2VlYSIgcng9IjQiLz48cGF0aCBkPSJNMyAzaDZWOUgzVjN6bTggMGg2VjlIMTFWM3ptOCA4aDZWMTloLTZWMTF6bS04IDBoNlYxMUgxMXY2em0tOCAwaDZWMTlIM1YxMXoiIGZpbGw9IndoaXRlIi8+PC9zdmc+",

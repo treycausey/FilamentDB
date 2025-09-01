@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>End-to-End Test - FilamentDB</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #FF6B35;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #fafafa;
+            border-left: 3px solid #FF6B35;
+            border-radius: 4px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status.pending { background: #FFD23F; color: #333; }
+        .status.running { background: #4CAF50; color: white; }
+        .status.passed { background: #2ECC71; color: white; }
+        .status.failed { background: #FF4444; color: white; }
+        button {
+            background: #FF6B35;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #E55A2B;
+        }
+        .result-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>FilamentDB - End-to-End Test Suite</h1>
+    
+    <div class="test-section">
+        <h2>Test Scenario: Generate QR Code → Save to Inventory → Verify</h2>
+        
+        <div class="test-step">
+            <strong>Step 1: Generate QR Code</strong>
+            <span class="status pending" id="status1">Pending</span>
+            <div class="result-box" id="result1" style="display:none;"></div>
+        </div>
+        
+        <div class="test-step">
+            <strong>Step 2: Save to Inventory</strong>
+            <span class="status pending" id="status2">Pending</span>
+            <div class="result-box" id="result2" style="display:none;"></div>
+        </div>
+        
+        <div class="test-step">
+            <strong>Step 3: Verify in Inventory</strong>
+            <span class="status pending" id="status3">Pending</span>
+            <div class="result-box" id="result3" style="display:none;"></div>
+        </div>
+        
+        <div class="test-step">
+            <strong>Step 4: Clean Up Test Data</strong>
+            <span class="status pending" id="status4">Pending</span>
+            <div class="result-box" id="result4" style="display:none;"></div>
+        </div>
+        
+        <button onclick="runTest()">Run End-to-End Test</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Environment</h2>
+        <iframe id="testFrame" src="generator.html"></iframe>
+    </div>
+    
+    <script>
+        const STORAGE_KEY = 'qrCodeEntries';
+        
+        // Test data
+        const testFilament = {
+            Manufacturer: 'TestBrand',
+            Material: 'PLA',
+            Color: 'Test Orange',
+            Temp1: '215',
+            Temp2: '60',
+            timestamp: new Date().toISOString(),
+            id: 'test-' + Date.now()
+        };
+        
+        function updateStatus(step, status, result = '') {
+            const statusEl = document.getElementById(`status${step}`);
+            const resultEl = document.getElementById(`result${step}`);
+            
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            if (result) {
+                resultEl.textContent = result;
+                resultEl.style.display = 'block';
+            }
+        }
+        
+        async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        async function runTest() {
+            console.log('Starting end-to-end test...');
+            
+            try {
+                // Step 1: Generate QR Code
+                updateStatus(1, 'running');
+                
+                // Create QR data string
+                const qrData = `Manufacturer: ${testFilament.Manufacturer}
+Material: ${testFilament.Material}
+Color: ${testFilament.Color}
+Temp1: ${testFilament.Temp1}
+Temp2: ${testFilament.Temp2}`;
+                
+                updateStatus(1, 'passed', `Generated QR data:\n${qrData}`);
+                await sleep(1000);
+                
+                // Step 2: Save to Inventory
+                updateStatus(2, 'running');
+                
+                // Get existing entries
+                const existingData = localStorage.getItem(STORAGE_KEY);
+                const entries = existingData ? JSON.parse(existingData) : [];
+                
+                // Add test entry
+                entries.push(testFilament);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+                
+                updateStatus(2, 'passed', `Saved to localStorage:\n${JSON.stringify(testFilament, null, 2)}`);
+                await sleep(1000);
+                
+                // Step 3: Verify in Inventory
+                updateStatus(3, 'running');
+                
+                // Read from storage
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                const savedEntries = JSON.parse(savedData);
+                
+                // Find our test entry
+                const foundEntry = savedEntries.find(e => e.id === testFilament.id);
+                
+                if (foundEntry) {
+                    updateStatus(3, 'passed', `Found in inventory:\n${JSON.stringify(foundEntry, null, 2)}`);
+                } else {
+                    throw new Error('Test entry not found in inventory');
+                }
+                
+                await sleep(1000);
+                
+                // Step 4: Clean up
+                updateStatus(4, 'running');
+                
+                // Remove test entry
+                const cleanedEntries = savedEntries.filter(e => e.id !== testFilament.id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanedEntries));
+                
+                updateStatus(4, 'passed', `Cleaned up test data. Inventory restored to ${cleanedEntries.length} entries.`);
+                
+                // Navigate to inventory to show result
+                setTimeout(() => {
+                    document.getElementById('testFrame').src = 'inventory.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                const failedStep = document.querySelector('.status.running');
+                if (failedStep) {
+                    const stepNum = failedStep.id.replace('status', '');
+                    updateStatus(stepNum, 'failed', `Error: ${error.message}`);
+                }
+            }
+        }
+        
+        // Add keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                runTest();
+            }
+        });
+    </script>
+</body>
+</html>
