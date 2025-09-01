@@ -1063,33 +1063,37 @@ body {
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0.02em;
 }
 
 .remaining-low {
-    background: linear-gradient(135deg, #FF4444 0%, #CC0000 100%);
-    color: white;
-    box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+    background: #FFE8E8;
+    color: #B42318;
+    border: 1px solid #FFB3B3;
+    box-shadow: none;
 }
 
 .remaining-medium {
-    background: linear-gradient(135deg, #FFD23F 0%, #FFA000 100%);
-    color: #333;
-    box-shadow: 0 2px 4px rgba(255, 210, 63, 0.3);
+    background: #FFF3D1;
+    color: #8B5E00;
+    border: 1px solid #FFDA85;
+    box-shadow: none;
 }
 
 .remaining-good {
-    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
-    color: white;
-    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+    background: #E8F5E9;
+    color: #1F7A35;
+    border: 1px solid #B7E1B9;
+    box-shadow: none;
 }
 
 .remaining-high {
-    background: linear-gradient(135deg, var(--gray-200) 0%, var(--gray-300) 100%);
+    background: #F3F4F6;
     color: var(--gray-700);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--gray-200);
+    box-shadow: none;
 }
 
 
