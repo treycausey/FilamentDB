@@ -841,10 +841,12 @@ body {
 }
 
 /* Inventory Actions */
-.inventory-actions {
+.inventory-actions,
+.bulk-actions {
     display: flex;
     gap: var(--space-3);
     flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .inventory-actions .btn {
