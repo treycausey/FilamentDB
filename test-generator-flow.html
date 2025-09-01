@@ -66,6 +66,9 @@
 </head>
 <body>
     <h1>FilamentDB - Generator Flow Test</h1>
+    <div style="background: #FFD23F; color: #333; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-weight: 600;">
+        ⚠️ TEST MODE - Using separate test storage. Your real inventory is protected.
+    </div>
     
     <div class="controls">
         <button onclick="fillForm()">1. Fill Form</button>
@@ -73,6 +76,7 @@
         <button onclick="saveToInventory()">3. Save to Inventory</button>
         <button onclick="checkInventory()">4. Check Inventory</button>
         <button onclick="runFullTest()">Run Full Test</button>
+        <button onclick="clearTestData()">Clear Test Data</button>
         <button onclick="clearLog()">Clear Log</button>
     </div>
     
@@ -94,6 +98,34 @@
     </div>
     
     <script>
+        // Use separate storage key for testing to avoid polluting real inventory
+        const TEST_STORAGE_KEY = 'qrCodeEntries_TEST';
+        const REAL_STORAGE_KEY = 'qrCodeEntries';
+        
+        // Backup and restore functions
+        let originalInventory = null;
+        
+        function backupRealInventory() {
+            originalInventory = localStorage.getItem(REAL_STORAGE_KEY);
+            if (originalInventory) {
+                localStorage.setItem(TEST_STORAGE_KEY, originalInventory);
+            }
+            log('Backed up real inventory for testing', 'success');
+        }
+        
+        function useTestInventory() {
+            // Temporarily swap the storage keys
+            const testData = localStorage.getItem(TEST_STORAGE_KEY) || '[]';
+            localStorage.setItem(REAL_STORAGE_KEY, testData);
+        }
+        
+        function restoreRealInventory() {
+            if (originalInventory !== null) {
+                localStorage.setItem(REAL_STORAGE_KEY, originalInventory);
+            }
+            log('Restored original inventory', 'success');
+        }
+        
         function log(message, type = 'info') {
             const logEl = document.getElementById('log');
             const entry = document.createElement('div');
@@ -106,6 +138,18 @@
         function clearLog() {
             document.getElementById('log').innerHTML = '';
             log('Log cleared');
+        }
+        
+        function clearTestData() {
+            // Clear test storage
+            localStorage.removeItem(TEST_STORAGE_KEY);
+            log('Test data cleared', 'success');
+            
+            // Ensure real inventory is restored
+            if (originalInventory !== null) {
+                localStorage.setItem(REAL_STORAGE_KEY, originalInventory);
+                log('Real inventory is protected', 'success');
+            }
         }
         
         async function fillForm() {
@@ -171,30 +215,44 @@
                 const frame = document.getElementById('generatorFrame');
                 const doc = frame.contentDocument || frame.contentWindow.document;
                 
+                // Use test inventory
+                backupRealInventory();
+                
                 // Click save button
                 const saveBtn = doc.getElementById('saveToInventoryBtn');
                 if (saveBtn) {
                     saveBtn.click();
-                    log('Save to inventory clicked', 'success');
+                    log('Save to TEST inventory clicked', 'success');
                     
-                    // Check if saved
+                    // Check if saved and restore real inventory
                     setTimeout(() => {
-                        const entries = localStorage.getItem('qrCodeEntries');
+                        const entries = localStorage.getItem(REAL_STORAGE_KEY);
                         if (entries) {
                             const parsed = JSON.parse(entries);
-                            log(`Inventory now has ${parsed.length} entries`, 'success');
+                            log(`TEST inventory now has ${parsed.length} entries`, 'success');
+                            
+                            // Save test data separately
+                            localStorage.setItem(TEST_STORAGE_KEY, entries);
                         }
+                        
+                        // Restore real inventory immediately
+                        restoreRealInventory();
                     }, 500);
                 } else {
                     log('Save button not found', 'error');
                 }
             } catch (error) {
                 log(`Error saving: ${error.message}`, 'error');
+                restoreRealInventory();
             }
         }
         
         async function checkInventory() {
             try {
+                // Temporarily use test inventory for checking
+                backupRealInventory();
+                localStorage.setItem(REAL_STORAGE_KEY, localStorage.getItem(TEST_STORAGE_KEY) || '[]');
+                
                 // Reload inventory frame
                 const frame = document.getElementById('inventoryFrame');
                 frame.src = frame.src;
@@ -202,16 +260,20 @@
                 setTimeout(() => {
                     const doc = frame.contentDocument || frame.contentWindow.document;
                     const entries = doc.querySelectorAll('.entry-card-grid, .entries-table tr');
-                    log(`Found ${entries.length} entries in inventory view`, 'success');
+                    log(`Found ${entries.length} entries in TEST inventory view`, 'success');
                     
                     // Check for our test entry
                     const content = doc.body.textContent;
                     if (content.includes('Prusament') && content.includes('PETG')) {
-                        log('Test entry found in inventory!', 'success');
+                        log('Test entry found in TEST inventory!', 'success');
                     }
+                    
+                    // Restore real inventory
+                    restoreRealInventory();
                 }, 1000);
             } catch (error) {
                 log(`Error checking inventory: ${error.message}`, 'error');
+                restoreRealInventory();
             }
         }
         
@@ -278,6 +340,17 @@
             // Initialize when page loads
             window.addEventListener('load', waitForIframes);
             log('Test environment initializing...');
+            
+            // Backup real inventory on load
+            originalInventory = localStorage.getItem(REAL_STORAGE_KEY);
+            log('Real inventory backed up (' + (originalInventory ? JSON.parse(originalInventory).length : 0) + ' items)', 'success');
+            
+            // Ensure real inventory is restored on page unload
+            window.addEventListener('beforeunload', () => {
+                if (originalInventory !== null) {
+                    localStorage.setItem(REAL_STORAGE_KEY, originalInventory);
+                }
+            });
         }
     </script>
 </body>
