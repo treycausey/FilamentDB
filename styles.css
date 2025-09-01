@@ -480,13 +480,28 @@ body {
 }
 
 .generate-btn {
-    background: var(--gradient-primary);
+    background: var(--primary);
+    color: var(--white);
+    border: 1px solid var(--primary);
     flex: 1;
 }
 
+.generate-btn:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
 .reset-btn {
-    background: var(--gradient-secondary);
+    background: var(--white);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
     flex: 1;
+}
+
+.reset-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+    color: var(--gray-900);
 }
 
 /* Color Input Group */
@@ -639,32 +654,36 @@ body {
     box-shadow: var(--shadow-md);
 }
 
-.download-btn {
-    background: var(--gradient-success);
-    color: var(--white);
-}
-
+.download-btn,
 .download-svg-btn {
-    background: var(--gradient-accent);
-    color: var(--white);
+    background: var(--white);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
 }
 
 .print-btn {
-    background: var(--gradient-secondary);
-    color: var(--white);
+    background: var(--white);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
 }
 
 .save-inventory-btn {
-    background: var(--gradient-primary);
+    background: var(--primary);
     color: var(--white);
+    border: 1px solid var(--primary);
 }
 
 .download-btn:hover,
 .download-svg-btn:hover,
-.print-btn:hover,
+.print-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
 .save-inventory-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-xl);
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
 }
 
 /* Inventory Styles */
@@ -1324,19 +1343,22 @@ body {
 .button-primary {
     display: inline-flex;
     align-items: center;
-    background: var(--gradient-primary);
+    background: var(--primary);
     color: var(--white);
     padding: var(--space-4) var(--space-8);
-    border-radius: var(--radius-xl);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-lg);
     text-decoration: none;
     font-weight: 600;
-    transition: all var(--transition-bounce);
-    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-sm);
 }
 
 .button-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-xl);
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 /* Responsive Design */
@@ -1538,13 +1560,42 @@ label:has(svg) {
     gap: var(--space-2);
 }
 
+.upload-button,
+.camera-button,
+.paste-button {
+    background: transparent;
+    border: none;
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+}
+
+.upload-button:hover,
+.camera-button:hover,
+.paste-button:hover {
+    color: var(--primary);
+}
+
 .upload-button svg,
 .camera-button svg,
 .paste-button svg {
     width: 48px;
     height: 48px;
-    color: var(--gray-600);
     margin-bottom: var(--space-3);
+}
+
+.upload-button span,
+.camera-button span,
+.paste-button span {
+    font-weight: 500;
+    font-size: 0.875rem;
 }
 
 .view-toggle svg {
@@ -1703,7 +1754,7 @@ label:has(svg) {
 }
 
 .entries-table th {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    background: var(--primary);
     color: var(--white);
     padding: var(--space-4);
     font-weight: 600;
@@ -1802,25 +1853,28 @@ label:has(svg) {
 
 /* View toggle buttons */
 .view-toggle {
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: var(--radius-lg);
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
     padding: var(--space-3) var(--space-4);
     color: var(--gray-700);
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-bounce);
+    transition: all var(--transition-normal);
     margin-right: var(--space-2);
     font-size: 0.875rem;
 }
 
-.view-toggle.active,
 .view-toggle:hover {
-    background: var(--gradient-primary);
+    background: var(--gray-50);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.view-toggle.active {
+    background: var(--primary);
     color: var(--white);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
 }
 
 /* Filter tags */
@@ -1828,10 +1882,11 @@ label:has(svg) {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    background: var(--gradient-accent);
-    color: var(--white);
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
     padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     font-size: 0.75rem;
     font-weight: 500;
     margin-right: var(--space-2);
