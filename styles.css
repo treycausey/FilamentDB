@@ -1055,6 +1055,10 @@ body {
     box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
 }
 
+.spool-count.editable {
+    cursor: pointer;
+}
+
 .remaining-percentage {
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);

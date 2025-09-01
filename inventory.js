@@ -158,7 +158,7 @@ function displayEntries(entries) {
                         <span class="temp">T2: ${entry.Temp2}°</span>
                     </div>
                     <div class="spool-info">
-                        <span class="spool-count">🧵 ${entry.spoolCount || 1} spool${(entry.spoolCount || 1) > 1 ? 's' : ''}</span>
+                        <span class="spool-count editable edit-spool" title="Edit spools">🧵 ${entry.spoolCount || 1} spool${(entry.spoolCount || 1) > 1 ? 's' : ''}</span>
                         <span class="remaining-percentage remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}% left</span>
                     </div>
                 </div>
@@ -196,7 +196,7 @@ function displayEntries(entries) {
                             </td>
                             <td>${entry.Temp1}</td>
                             <td>${entry.Temp2}</td>
-                            <td>${entry.spoolCount || 1}</td>
+                            <td><span class="edit-spool spool-count editable" title="Edit spools">${entry.spoolCount || 1}</span></td>
                             <td class="remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}%</td>
                             <td>${new Date(entry.timestamp).toLocaleDateString()}</td>
                             <td>
@@ -225,6 +225,16 @@ function displayEntries(entries) {
         });
     });
     
+    // Add spool edit listeners (grid and list)
+    document.querySelectorAll('.edit-spool').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const container = e.target.closest('[data-id]');
+            const id = container?.dataset.id;
+            if (id) openSpoolEditor(id);
+        });
+    });
+
     // Add color picker listeners on swatches
     document.querySelectorAll('.color-indicator').forEach(sw => {
         sw.addEventListener('click', (e) => {
@@ -565,6 +575,27 @@ function normalizeToHex(colorStr) {
         return ColorUtils.rgbToHex(r, g, b).toUpperCase();
     }
     return '#000000';
+}
+
+// ===============================
+// Spool count editor
+// ===============================
+
+function openSpoolEditor(id) {
+    const entry = allEntries.find(e => e.id === id);
+    if (!entry) return;
+    const current = parseInt(entry.spoolCount || 1, 10) || 1;
+    const input = prompt('Enter number of spools (1-999):', String(current));
+    if (input === null) return; // cancelled
+    const value = parseInt(input.trim(), 10);
+    if (isNaN(value) || value < 1 || value > 999) {
+        alert('Please enter a valid number between 1 and 999.');
+        return;
+    }
+    if (value === current) return;
+    entry.spoolCount = value;
+    saveToStorage(allEntries);
+    loadSavedEntries();
 }
 
 function isColorInputSupported() {
