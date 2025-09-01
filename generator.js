@@ -134,20 +134,13 @@ async function generateQRCode(dataString) {
     try {
         console.log('Generating QR code with data:', dataString);
         
-        // Wait for QR library to be ready
-        await waitForQRLibrary();
-        
         // Check if QRCode library is available
-        if (typeof QRCode === 'undefined') {
-            throw new Error('QRCode library not loaded');
+        if (typeof QRCode === 'undefined' || !QRCode.toCanvas) {
+            throw new Error('QRCode library not available');
         }
         
-        console.log('Using QR library:', window.QRGenerator.method || 'Unknown');
-        
-        // Generate QR code as canvas
+        // Generate QR code using local QRious library via QRCode interface
         const canvas = document.createElement('canvas');
-        
-        // Use a more compatible approach
         const options = {
             width: 300,
             margin: 2,
@@ -158,106 +151,132 @@ async function generateQRCode(dataString) {
             errorCorrectionLevel: 'M'
         };
         
-        console.log('QRCode options:', options);
-        
-        // Generate QR code
         await QRCode.toCanvas(canvas, dataString, options);
+        console.log('✅ QR code generated successfully');
         
-        console.log('QR code generated successfully');
-        
-        // Add text overlay to QR code
+        // Add text overlay and display
         const enhancedCanvas = addTextOverlayToQR(canvas, currentQRData);
-        
-        // Clear previous QR code and add new one
-        qrCodeDisplay.innerHTML = '';
-        qrCodeDisplay.appendChild(enhancedCanvas);
-        
-        // Store canvas reference for downloads
-        currentQRCode = enhancedCanvas;
-        
-        // Update data display
-        updateQRDataDisplay();
-        
-        // Show preview, hide placeholder
-        qrPlaceholder.classList.add('hidden');
-        qrPreview.classList.remove('hidden');
+        displayQRCode(enhancedCanvas);
         
     } catch (error) {
-        console.error('Detailed QR generation error:', error);
-        console.error('Error stack:', error.stack);
-        console.error('QRCode available:', typeof QRCode);
-        console.error('Data string:', dataString);
+        console.error('QR generation failed:', error);
         
-        // Try fallback method
+        // Try online fallback as last resort
         try {
-            await generateQRCodeFallback(dataString);
+            console.log('Trying online fallback service...');
+            await generateQRCodeOnlineFallback(dataString);
         } catch (fallbackError) {
-            console.error('Fallback also failed:', fallbackError);
-            showDetailedError(error, dataString);
+            console.error('Online fallback also failed:', fallbackError);
+            await createPlaceholderQR(dataString);
         }
     }
 }
 
-async function generateQRCodeFallback(dataString) {
-    console.log('Attempting fallback QR generation');
+async function generateQRCodeOnlineFallback(dataString) {
+    console.log('Attempting online QR service fallback');
     
-    // Create a simpler canvas-based QR code
+    return new Promise((resolve, reject) => {
+        // Use QR Server API as fallback
+        const encodedData = encodeURIComponent(dataString);
+        const size = '300x300';
+        const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}&data=${encodedData}&format=png&margin=10`;
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = function() {
+            try {
+                // Create canvas and draw the QR code
+                const canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                
+                // Fill background with white
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw the QR code image
+                ctx.drawImage(img, 0, 0, 300, 300);
+                
+                // Add text overlay and display
+                const enhancedCanvas = addTextOverlayToQR(canvas, currentQRData);
+                displayQRCode(enhancedCanvas);
+                
+                console.log('Online fallback QR generation successful');
+                resolve();
+                
+            } catch (error) {
+                console.error('Error processing online QR image:', error);
+                reject(error);
+            }
+        };
+        
+        img.onerror = function() {
+            const error = new Error('Failed to load QR code from online service');
+            console.error('Online QR service failed');
+            reject(error);
+        };
+        
+        // Load the QR code image
+        img.src = url;
+    });
+}
+
+// Helper function to display QR code
+function displayQRCode(canvas) {
+    // Clear previous QR code and add new one
+    qrCodeDisplay.innerHTML = '';
+    qrCodeDisplay.appendChild(canvas);
+    
+    // Store canvas reference for downloads
+    currentQRCode = canvas;
+    
+    // Update data display
+    updateQRDataDisplay();
+    
+    // Show preview, hide placeholder
+    qrPlaceholder.classList.add('hidden');
+    qrPreview.classList.remove('hidden');
+}
+
+// Create a placeholder QR code when all else fails
+async function createPlaceholderQR(dataString) {
+    console.log('Creating placeholder QR code');
+    
     const canvas = document.createElement('canvas');
     canvas.width = 300;
     canvas.height = 300;
+    const ctx = canvas.getContext('2d');
     
-    // Try different approach
-    const qrCodeDataURL = await QRCode.toDataURL(dataString, {
-        width: 300,
-        margin: 2,
-        errorCorrectionLevel: 'M'
-    });
+    // Create a simple visual placeholder
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Create image and draw to canvas
-    const img = new Image();
-    img.onload = function() {
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        
-        // Add text overlay to QR code
-        const enhancedCanvas = addTextOverlayToQR(canvas, currentQRData);
-        
-        // Clear previous QR code and add new one
-        qrCodeDisplay.innerHTML = '';
-        qrCodeDisplay.appendChild(enhancedCanvas);
-        
-        // Store canvas reference for downloads
-        currentQRCode = enhancedCanvas;
-        
-        // Update data display
-        updateQRDataDisplay();
-        
-        // Show preview, hide placeholder
-        qrPlaceholder.classList.add('hidden');
-        qrPreview.classList.remove('hidden');
-        
-        console.log('Fallback QR generation successful');
-    };
-    img.src = qrCodeDataURL;
+    // Draw border
+    ctx.strokeStyle = '#dee2e6';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw simple pattern
+    ctx.fillStyle = '#6c757d';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Draw placeholder text
+    ctx.fillText('QR CODE', canvas.width / 2, canvas.height / 2 - 20);
+    ctx.font = '12px Arial';
+    ctx.fillText('Generation Failed', canvas.width / 2, canvas.height / 2);
+    ctx.fillText('Data: ' + dataString.substring(0, 30) + '...', canvas.width / 2, canvas.height / 2 + 20);
+    
+    // Add text overlay and display
+    const enhancedCanvas = addTextOverlayToQR(canvas, currentQRData);
+    displayQRCode(enhancedCanvas);
+    
+    console.log('Placeholder QR code created');
 }
 
-function showDetailedError(error, dataString) {
-    const errorDetails = `
-Error generating QR code:
-- Error: ${error.message}
-- Data length: ${dataString.length} characters
-- QRCode library: ${typeof QRCode}
-- Browser: ${navigator.userAgent}
-
-Please try:
-1. Refreshing the page
-2. Using shorter text
-3. Checking your internet connection
-    `;
-    
-    console.error(errorDetails);
-    alert('Error generating QR code. Please check the console for details and try again.');
-}
 
 function updateQRDataDisplay() {
     if (!currentQRData) return;
@@ -284,7 +303,6 @@ async function downloadSVG() {
     if (!currentQRData) return;
     
     try {
-        // Generate QR code as SVG
         const qrDataString = [
             currentQRData.Manufacturer,
             currentQRData.Material,
@@ -293,19 +311,44 @@ async function downloadSVG() {
             currentQRData.Temp2
         ].join('\n');
         
-        const svgString = await QRCode.toString(qrDataString, {
-            type: 'svg',
-            width: 300,
-            margin: 2,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            },
-            errorCorrectionLevel: 'M'
-        });
+        let svgString = null;
         
-        // Add text overlay to SVG
-        const enhancedSvgString = addTextOverlayToSVG(svgString, currentQRData);
+        // Try to generate SVG with QRCode library
+        if (typeof QRCode !== 'undefined' && QRCode.toString) {
+            try {
+                svgString = await QRCode.toString(qrDataString, {
+                    type: 'svg',
+                    width: 300,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    },
+                    errorCorrectionLevel: 'M'
+                });
+                console.log('SVG generated with QRCode library');
+            } catch (qrError) {
+                console.log('QRCode SVG generation failed:', qrError.message);
+            }
+        }
+        
+        // Fallback: Convert current canvas to SVG if QRCode library failed
+        if (!svgString && currentQRCode) {
+            console.log('Converting canvas to SVG as fallback');
+            svgString = await convertCanvasToSVG(currentQRCode, currentQRData);
+        }
+        
+        // Final fallback: Create simple SVG
+        if (!svgString) {
+            console.log('Creating simple SVG fallback');
+            svgString = createSimpleSVGFallback(qrDataString, currentQRData);
+        }
+        
+        // Add text overlay to SVG if it's a proper QR SVG
+        let enhancedSvgString = svgString;
+        if (svgString.includes('<rect') && svgString.includes('fill=\"#000000\"')) {
+            enhancedSvgString = addTextOverlayToSVG(svgString, currentQRData);
+        }
         
         // Create download link
         const blob = new Blob([enhancedSvgString], { type: 'image/svg+xml' });
@@ -322,8 +365,36 @@ async function downloadSVG() {
         
     } catch (error) {
         console.error('Error generating SVG:', error);
-        alert('Error generating SVG. Please try again.');
+        alert('SVG download failed. You can try downloading as PNG instead.');
     }
+}
+
+// Convert canvas to SVG (fallback method)
+async function convertCanvasToSVG(canvas, qrData) {
+    const dataUrl = canvas.toDataURL('image/png');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <image width="${width}" height="${height}" xlink:href="${dataUrl}"/>
+    </svg>`;
+}
+
+// Create simple SVG fallback
+function createSimpleSVGFallback(dataString, qrData) {
+    const size = 300;
+    const textHeight = 60;
+    const totalHeight = size + textHeight;
+    
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${totalHeight}" viewBox="0 0 ${size} ${totalHeight}">
+        <rect width="${size}" height="${totalHeight}" fill="white" stroke="#ddd" stroke-width="2"/>
+        <rect x="10" y="10" width="${size-20}" height="${size-20}" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2"/>
+        <text x="${size/2}" y="${size/2}" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#6c757d">QR CODE</text>
+        <text x="${size/2}" y="${size/2 + 20}" text-anchor="middle" font-family="Arial" font-size="12" fill="#6c757d">Generation Failed</text>
+        <text x="${size/2}" y="${size + 20}" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#000">${qrData.Manufacturer} ${qrData.Material}</text>
+        <text x="${size/2}" y="${size + 38}" text-anchor="middle" font-family="Arial" font-size="12" fill="#000">${qrData.Color}</text>
+        <text x="${size/2}" y="${size + 53}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000">T1: ${qrData.Temp1}°C | T2: ${qrData.Temp2}°C</text>
+    </svg>`;
 }
 
 function printQR() {
@@ -549,21 +620,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Utility function to wait for QR library to be ready
-function waitForQRLibrary(timeout = 10000) {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
-        
-        function check() {
-            if (window.QRGenerator && window.QRGenerator.ready) {
-                resolve();
-            } else if (Date.now() - startTime > timeout) {
-                reject(new Error('QR library loading timeout'));
-            } else {
-                setTimeout(check, 100);
-            }
-        }
-        
-        check();
-    });
-}
+// QR library is loaded directly via local file - no waiting needed

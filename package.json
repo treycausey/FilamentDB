@@ -1,7 +1,7 @@
 {
-  "name": "claude-qr-code-reader",
+  "name": "filamentdb",
   "version": "1.0.0",
-  "description": "Claude QR Code Reader Web Application",
+  "description": "FilamentDB - 3D Printing Filament Inventory Management System",
   "main": "index.html",
   "scripts": {
     "dev": "npx live-server . --port=3000 --host=0.0.0.0",
@@ -9,12 +9,14 @@
     "start": "npm run dev"
   },
   "keywords": [
+    "filament",
+    "3d-printing",
+    "inventory",
     "qr-code",
-    "scanner",
-    "reader"
+    "scanner"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "live-server": "^1.2.2"
   }

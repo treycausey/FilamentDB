@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+FilamentDB - 3D Printing Filament Inventory Management System
+Licensed under GPL-3.0-or-later due to inclusion of GPL-3.0 licensed QRious library
+See LICENSES.md for full license information
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -179,56 +184,50 @@
         </div>
     </div>
     
+    <!-- Load dependencies -->
     <script src="shared-qr-processing.js"></script>
-    <script src="simple-qr.js"></script>
     <script src="color-detection.js"></script>
     <script src="color-utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    
+    <!-- Load local QRious library -->
+    <script src="qrious-local.js"></script>
+    
     <script>
-        // QR Library initialization and fallback management
-        window.QRGenerator = {
-            ready: false,
-            useSimple: false,
-            method: 'unknown'
-        };
-        
-        function initializeQRLibrary() {
-            // Check for primary QRCode library first
-            if (typeof QRCode !== 'undefined' && QRCode.toCanvas) {
-                console.log('✓ Primary QRCode library loaded successfully');
-                window.QRGenerator.ready = true;
-                window.QRGenerator.method = 'QRCode.js';
-                return;
-            }
-            
-            // Try local QRious library
+        // Simple QR library initialization using local QRious
+        document.addEventListener('DOMContentLoaded', function() {
             if (typeof QRious !== 'undefined') {
-                console.log('✓ QRious library loaded, creating QRCode interface');
+                console.log('✅ QRious library loaded successfully');
+                
+                // Create QRCode-compatible interface for existing code
                 window.QRCode = {
-                    toCanvas: function(canvas, text, options) {
-                        return new Promise((resolve, reject) => {
-                            try {
-                                const qr = new QRious({
-                                    element: canvas,
-                                    value: text,
-                                    size: options.width || 300,
-                                    level: options.errorCorrectionLevel || 'M'
-                                });
-                                resolve();
-                            } catch (error) {
-                                reject(error);
-                            }
-                        });
+                    toCanvas: function(canvas, text, options, callback) {
+                        try {
+                            new QRious({
+                                element: canvas,
+                                value: text,
+                                size: (options && options.width) || 300,
+                                level: (options && options.errorCorrectionLevel) || 'M',
+                                foreground: (options && options.color && options.color.dark) || '#000000',
+                                background: (options && options.color && options.color.light) || '#FFFFFF'
+                            });
+                            
+                            if (callback) callback(null);
+                            return Promise.resolve();
+                        } catch (error) {
+                            if (callback) callback(error);
+                            return Promise.reject(error);
+                        }
                     },
+                    
                     toDataURL: function(text, options) {
                         return new Promise((resolve, reject) => {
                             try {
                                 const canvas = document.createElement('canvas');
-                                const qr = new QRious({
+                                new QRious({
                                     element: canvas,
                                     value: text,
-                                    size: options.width || 300,
-                                    level: options.errorCorrectionLevel || 'M'
+                                    size: (options && options.width) || 300,
+                                    level: (options && options.errorCorrectionLevel) || 'M'
                                 });
                                 resolve(canvas.toDataURL());
                             } catch (error) {
@@ -236,68 +235,25 @@
                             }
                         });
                     },
+                    
                     toString: function(text, options) {
                         if (options && options.type === 'svg') {
-                            return Promise.resolve(createSimpleSVG(text, options.width || 300));
+                            // Simple SVG fallback
+                            const size = options.width || 300;
+                            return Promise.resolve(`<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="${size}" height="${size}" fill="white"/>
+                                <text x="${size/2}" y="${size/2}" text-anchor="middle" font-family="Arial" font-size="12">SVG QR not supported</text>
+                            </svg>`);
                         }
                         return this.toDataURL(text, options);
                     }
                 };
-                window.QRGenerator.ready = true;
-                window.QRGenerator.method = 'QRious';
-                return;
-            }
-            
-            // Fall back to SimpleQR (online services)
-            console.log('⚠ Using SimpleQR fallback (online services)');
-            window.QRGenerator.useSimple = true;
-            window.QRGenerator.method = 'SimpleQR';
-            
-            // Create QRCode-compatible interface using SimpleQR
-            window.QRCode = {
-                toCanvas: SimpleQR.toCanvas,
-                toDataURL: SimpleQR.toDataURL,
-                toString: async function(text, options) {
-                    if (options && options.type === 'svg') {
-                        return createSimpleSVG(text, options.width || 300);
-                    }
-                    return SimpleQR.toDataURL(text, options);
-                }
-            };
-            window.QRGenerator.ready = true;
-        }
-        
-        // Try to load local QRious library if primary fails
-        window.addEventListener('load', function() {
-            initializeQRLibrary();
-            
-            // If no libraries loaded, try loading QRious locally
-            if (!window.QRGenerator.ready || window.QRGenerator.method === 'SimpleQR') {
-                const script = document.createElement('script');
-                script.src = 'qrious.min.js';
-                script.onload = function() {
-                    console.log('✓ Local QRious library loaded');
-                    initializeQRLibrary();
-                };
-                script.onerror = function() {
-                    console.log('⚠ Local QRious library failed, using SimpleQR');
-                    if (!window.QRGenerator.ready) {
-                        initializeQRLibrary();
-                    }
-                };
-                document.head.appendChild(script);
+                
+                console.log('✅ QRCode interface ready');
+            } else {
+                console.error('❌ QRious library not found');
             }
         });
-        
-        function createSimpleSVG(text, size) {
-            return `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-                <rect width="${size}" height="${size}" fill="#f8d7da"/>
-                <rect x="10" y="10" width="${size-20}" height="${size-20}" fill="white" stroke="#f5c6cb" stroke-width="2"/>
-                <text x="${size/2}" y="${size/2}" text-anchor="middle" font-family="Arial" font-size="16" fill="#721c24">QR Generation</text>
-                <text x="${size/2}" y="${size/2 + 20}" text-anchor="middle" font-family="Arial" font-size="16" fill="#721c24">Failed</text>
-                <text x="${size/2}" y="${size/2 + 40}" text-anchor="middle" font-family="monospace" font-size="10" fill="#721c24">${text.substring(0, 30)}</text>
-            </svg>`;
-        }
     </script>
     <script src="generator.js"></script>
 </body>
