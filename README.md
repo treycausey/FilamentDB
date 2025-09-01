@@ -40,6 +40,7 @@ FilamentDB is a web-based inventory management system specifically designed for 
 - Download as PNG or SVG
 - Print-ready output with filament details
 - Color detection via camera
+- **Universal printing support for any printer**
 
 ### 📦 Inventory Management  
 - Complete filament database with 285+ supported colors
@@ -132,6 +133,32 @@ Temperature 2 (e.g., "60")
 **Temperature Guidelines:**
 - **Temperature 1**: Extruder/nozzle temperature (°C)
 - **Temperature 2**: Bed temperature (°C)
+
+### 🖨️ Universal Printing
+
+FilamentDB supports printing QR codes on any printer through your browser's standard print dialog.
+
+**How to Print:**
+1. Generate a QR code in the Generator page
+2. Click the **"Print"** button
+3. Use your browser's print dialog to select any connected printer
+4. Choose your preferred paper size and quality settings
+5. Print to any standard printer or label printer
+
+**Print Output:**
+- **High-resolution QR code**: 400px resolution for crisp printing
+- **Clean layout**: QR code only, no additional text
+- **Universal compatibility**: Works with any printer through system print dialog
+- **Optimized rendering**: Sharp edges and maximum contrast for reliable scanning
+
+**Tips for Best Results:**
+- Use high-quality print settings for crisp QR codes
+- White paper or labels provide best contrast
+- Test scan the printed QR code before applying to filament spools
+- For label printers: adjust printer settings to fit your label size
+
+**Safety Warning:**
+The system will warn you before navigating away if you've printed a QR code but haven't saved it to inventory, preventing accidental loss of your filament data.
 
 ## 🎨 Design Philosophy
 
