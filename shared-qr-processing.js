@@ -30,9 +30,11 @@ function parseQRData(data) {
     if (!parsedData.Temp1) parsedData.Temp1 = 'NA';
     if (!parsedData.Temp2) parsedData.Temp2 = 'NA';
     
-    // Add timestamp and ID
+    // Add timestamp, ID, spool count, and remaining percentage
     parsedData.timestamp = new Date().toISOString();
     parsedData.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    parsedData.spoolCount = 1; // Default to 1 spool for new entries
+    parsedData.remainingPercentage = 100; // Default to 100% remaining for new entries
     
     return parsedData;
 }
@@ -61,6 +63,14 @@ function createQRDataDisplay(parsedData) {
                 <span class="field-label">Temp2:</span>
                 <span class="field-value">${parsedData.Temp2}</span>
             </div>
+            <div class="field-row">
+                <span class="field-label">Spool Count:</span>
+                <span class="field-value">${parsedData.spoolCount || 1}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Remaining:</span>
+                <span class="field-value">${parsedData.remainingPercentage || 100}%</span>
+            </div>
         </div>
     `;
 }
@@ -68,14 +78,34 @@ function createQRDataDisplay(parsedData) {
 // Storage functions
 function getStoredEntries() {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const entries = stored ? JSON.parse(stored) : [];
+    
+    // Migrate existing entries to include spoolCount and remainingPercentage fields
+    let needsMigration = false;
+    entries.forEach(entry => {
+        if (!entry.spoolCount) {
+            entry.spoolCount = 1;
+            needsMigration = true;
+        }
+        if (entry.remainingPercentage === undefined) {
+            entry.remainingPercentage = 100;
+            needsMigration = true;
+        }
+    });
+    
+    // Save migrated data back to storage
+    if (needsMigration) {
+        saveToStorage(entries);
+    }
+    
+    return entries;
 }
 
 function saveToStorage(entries) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
 }
 
-// Add entry to inventory with duplicate checking
+// Add entry to inventory with duplicate checking and spool counting
 function addToInventory(parsedData, options = {}) {
     const { 
         allowDuplicates = false, 
@@ -87,31 +117,60 @@ function addToInventory(parsedData, options = {}) {
     try {
         const entries = getStoredEntries();
         
-        // Check for duplicates if not allowing them
-        if (!allowDuplicates) {
-            const duplicate = entries.find(entry => 
-                entry.Manufacturer === parsedData.Manufacturer &&
-                entry.Material === parsedData.Material &&
-                entry.Color === parsedData.Color
-            );
+        // Check for duplicates
+        const duplicate = entries.find(entry => 
+            entry.Manufacturer === parsedData.Manufacturer &&
+            entry.Material === parsedData.Material &&
+            entry.Color === parsedData.Color
+        );
+        
+        if (duplicate) {
+            // Ask user if this is a duplicate or a new spool
+            const isDuplicate = showConfirmation ? 
+                confirm(`A filament with these details already exists:\n\n${duplicate.Manufacturer} ${duplicate.Material} - ${duplicate.Color}\nCurrent spool count: ${duplicate.spoolCount || 1}\n\nIs this the same filament (click OK to add another spool) or a different one (click Cancel to add as new entry)?`) : 
+                true;
             
-            if (duplicate) {
-                const shouldAdd = showConfirmation ? 
-                    confirm('An entry with the same Manufacturer, Material, and Color already exists. Add anyway?') : 
-                    true;
+            if (isDuplicate) {
+                // Increment spool count instead of adding new entry
+                duplicate.spoolCount = (duplicate.spoolCount || 1) + 1;
+                duplicate.timestamp = new Date().toISOString(); // Update timestamp
+                // Keep the original remaining percentage (don't update it when adding spools)
+                saveToStorage(entries);
                 
-                if (!shouldAdd) {
-                    if (onError) onError('User cancelled due to duplicate');
-                    return false;
+                console.log('Incremented spool count for existing filament:', duplicate);
+                
+                // Auto-sync to cloud if available
+                if (typeof window !== 'undefined' && window.cloudStorage && window.cloudStorage.isReady()) {
+                    window.cloudStorage.uploadData(entries).catch(err => 
+                        console.warn('Cloud sync after spool count update failed:', err)
+                    );
                 }
+                
+                if (onSuccess) {
+                    onSuccess(duplicate, entries, 'spool_incremented');
+                }
+                
+                return true;
+            } else if (!allowDuplicates) {
+                // User said it's different, but we're not allowing duplicates
+                // In this case, we still add it as they indicated it's different
+                // The allowDuplicates flag is more about automatic prevention
             }
         }
         
-        // Add to entries
+        // Ensure new entry has spool count and remaining percentage
+        if (!parsedData.spoolCount) {
+            parsedData.spoolCount = 1;
+        }
+        if (parsedData.remainingPercentage === undefined) {
+            parsedData.remainingPercentage = 100;
+        }
+        
+        // Add as new entry
         entries.unshift(parsedData);
         saveToStorage(entries);
         
-        console.log('Added to inventory:', parsedData);
+        console.log('Added new filament to inventory:', parsedData);
         
         // Auto-sync to cloud if available
         if (typeof window !== 'undefined' && window.cloudStorage && window.cloudStorage.isReady()) {
@@ -121,7 +180,7 @@ function addToInventory(parsedData, options = {}) {
         }
         
         if (onSuccess) {
-            onSuccess(parsedData, entries);
+            onSuccess(parsedData, entries, 'new_entry');
         }
         
         return true;

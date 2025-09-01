@@ -57,7 +57,27 @@ document.addEventListener('DOMContentLoaded', () => {
 // Storage functions
 function getStoredEntries() {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const entries = stored ? JSON.parse(stored) : [];
+    
+    // Migrate existing entries to include spoolCount and remainingPercentage fields
+    let needsMigration = false;
+    entries.forEach(entry => {
+        if (!entry.spoolCount) {
+            entry.spoolCount = 1;
+            needsMigration = true;
+        }
+        if (entry.remainingPercentage === undefined) {
+            entry.remainingPercentage = 100;
+            needsMigration = true;
+        }
+    });
+    
+    // Save migrated data back to storage
+    if (needsMigration) {
+        saveToStorage(entries);
+    }
+    
+    return entries;
 }
 
 function saveToStorage(entries) {
@@ -123,6 +143,10 @@ function displayEntries(entries) {
                         <span class="temp">T1: ${entry.Temp1}°</span>
                         <span class="temp">T2: ${entry.Temp2}°</span>
                     </div>
+                    <div class="spool-info">
+                        <span class="spool-count">🧵 ${entry.spoolCount || 1} spool${(entry.spoolCount || 1) > 1 ? 's' : ''}</span>
+                        <span class="remaining-percentage remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}% left</span>
+                    </div>
                 </div>
                 <div class="entry-card-footer">
                     <span class="entry-date">${new Date(entry.timestamp).toLocaleDateString()}</span>
@@ -139,6 +163,8 @@ function displayEntries(entries) {
                         <th data-sort="color">Color</th>
                         <th data-sort="temp1">Temp1</th>
                         <th data-sort="temp2">Temp2</th>
+                        <th data-sort="spools">Spools</th>
+                        <th data-sort="remaining">Remaining</th>
                         <th data-sort="date">Date</th>
                         <th>Actions</th>
                     </tr>
@@ -156,6 +182,8 @@ function displayEntries(entries) {
                             </td>
                             <td>${entry.Temp1}</td>
                             <td>${entry.Temp2}</td>
+                            <td>${entry.spoolCount || 1}</td>
+                            <td class="remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}%</td>
                             <td>${new Date(entry.timestamp).toLocaleDateString()}</td>
                             <td>
                                 <button class="delete-entry table-delete" data-id="${entry.id}">Delete</button>
@@ -195,6 +223,13 @@ function displayEntries(entries) {
 function getColorHex(colorName) {
     // Use the enhanced color utility that supports 285+ colors
     return ColorUtils.getColorHex(colorName);
+}
+
+function getRemainingCategory(percentage) {
+    if (percentage <= 10) return 'low';
+    if (percentage <= 25) return 'medium';
+    if (percentage <= 50) return 'good';
+    return 'high';
 }
 
 function handleSearch() {
@@ -255,6 +290,12 @@ function sortEntries(entries) {
                 const bTemp = b.Temp2 === 'NA' ? Infinity : parseFloat(b.Temp2);
                 return aTemp - bTemp;
             });
+            break;
+        case 'spools':
+            entries.sort((a, b) => (b.spoolCount || 1) - (a.spoolCount || 1));
+            break;
+        case 'remaining':
+            entries.sort((a, b) => (b.remainingPercentage || 100) - (a.remainingPercentage || 100));
             break;
     }
 }
@@ -442,6 +483,8 @@ function handleTableSort(field, headerElement) {
         'color': tableSortDirection === 'asc' ? 'color' : 'color-desc',
         'temp1': tableSortDirection === 'asc' ? 'temp1' : 'temp1-desc',
         'temp2': tableSortDirection === 'asc' ? 'temp2' : 'temp2-desc',
+        'spools': tableSortDirection === 'asc' ? 'spools' : 'spools-desc',
+        'remaining': tableSortDirection === 'asc' ? 'remaining' : 'remaining-desc',
         'date': tableSortDirection === 'asc' ? 'date-asc' : 'date-desc'
     };
     
@@ -461,6 +504,8 @@ function handleTableSort(field, headerElement) {
                     'color': 'color',
                     'temp1': 'temp1',
                     'temp2': 'temp2',
+                    'spools': 'spools',
+                    'remaining': 'remaining',
                     'date': tableSortDirection === 'asc' ? 'date-asc' : 'date-desc'
                 };
                 sortSelect.value = simpleMap[field] || 'date-desc';

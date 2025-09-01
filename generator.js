@@ -16,6 +16,7 @@ const customMaterialField = document.getElementById('customMaterial');
 const colorField = document.getElementById('color');
 const temp1Field = document.getElementById('temp1');
 const temp2Field = document.getElementById('temp2');
+const remainingField = document.getElementById('remaining');
 const colorDetectorBtn = document.getElementById('colorDetectorBtn');
 
 // State
@@ -49,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         colorField.value = urlParams.get('color') || '';
         temp1Field.value = urlParams.get('temp1') || '';
         temp2Field.value = urlParams.get('temp2') || '';
+        remainingField.value = urlParams.get('remaining') || '100';
         
         // Auto-generate if all required fields are present
         if (manufacturerField.value && materialField.value && colorField.value) {
@@ -82,6 +84,7 @@ function handleFormSubmit(e) {
     const color = colorField.value.trim();
     const temp1 = temp1Field.value || 'NA';
     const temp2 = temp2Field.value || 'NA';
+    const remaining = remainingField.value || '100';
     
     // Handle custom material
     if (material === 'Other') {
@@ -118,6 +121,8 @@ function handleFormSubmit(e) {
     
     // Store parsed data (ensures same format as scanned codes)
     currentQRData = validation.data;
+    // Add remaining percentage to the parsed data
+    currentQRData.remainingPercentage = parseInt(remaining) || 100;
     
     // Reset tracking flags for new QR code
     hasPrinted = false;
@@ -132,10 +137,11 @@ function handleFormReset() {
     qrPreview.classList.add('hidden');
     qrPlaceholder.classList.remove('hidden');
     
-    // Hide custom material field
+    // Hide custom material field and reset remaining percentage
     customMaterialField.classList.add('hidden');
     customMaterialField.required = false;
     customMaterialField.value = '';
+    remainingField.value = '100';
     
     currentQRData = null;
     currentQRCode = null;
@@ -500,11 +506,15 @@ function saveToInventory() {
     const success = QRProcessor.addToInventory(currentQRData, {
         allowDuplicates: false,
         showConfirmation: true,
-        onSuccess: (data, entries) => {
+        onSuccess: (data, entries, actionType) => {
             console.log('Added generated QR code to inventory:', data);
             hasSavedToInventory = true; // Mark as saved
-            // Show success feedback
-            saveToInventoryBtn.textContent = 'Saved!';
+            // Show success feedback based on action type
+            if (actionType === 'spool_incremented') {
+                saveToInventoryBtn.textContent = `Spool Count: ${data.spoolCount}`;
+            } else {
+                saveToInventoryBtn.textContent = 'Saved!';
+            }
             saveToInventoryBtn.disabled = true;
             setTimeout(() => {
                 saveToInventoryBtn.textContent = 'Save to Inventory';

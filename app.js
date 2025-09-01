@@ -272,18 +272,29 @@ function saveToStorage(entries) {
 function saveCurrentEntry() {
     if (!currentParsedData) return;
     
-    const entries = getStoredEntries();
-    entries.unshift(currentParsedData); // Add to beginning
-    saveToStorage(entries);
-    
-    // Show success feedback
-    saveButton.textContent = 'Saved!';
-    saveButton.disabled = true;
-    setTimeout(() => {
-        saveButton.textContent = 'Save Entry';
-    }, 2000);
-    
-    loadRecentScans();
+    // Use shared QR processing logic for consistency with generator
+    QRProcessor.addToInventory(currentParsedData, {
+        allowDuplicates: false,
+        showConfirmation: true,
+        onSuccess: (data, entries, actionType) => {
+            console.log('Saved scanned QR code to inventory:', data);
+            // Show success feedback based on action type
+            if (actionType === 'spool_incremented') {
+                saveButton.textContent = `Spool Count: ${data.spoolCount}`;
+            } else {
+                saveButton.textContent = 'Saved!';
+            }
+            saveButton.disabled = true;
+            setTimeout(() => {
+                saveButton.textContent = 'Save Entry';
+                saveButton.disabled = false;
+            }, 2000);
+            loadRecentScans(); // Refresh recent scans list
+        },
+        onError: (error) => {
+            console.log('Save cancelled or failed:', error);
+        }
+    });
 }
 
 function loadRecentScans() {
