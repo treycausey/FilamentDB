@@ -111,14 +111,26 @@
         async function fillForm() {
             try {
                 const frame = document.getElementById('generatorFrame');
-                const doc = frame.contentDocument;
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                
+                // Wait for the form elements to be available
+                const manufacturer = doc.getElementById('manufacturer');
+                const material = doc.getElementById('material');
+                const color = doc.getElementById('color');
+                const temp1 = doc.getElementById('temp1');
+                const temp2 = doc.getElementById('temp2');
+                
+                if (!manufacturer) {
+                    log('Form not ready yet. Please wait for page to load completely.', 'error');
+                    return;
+                }
                 
                 // Fill the form
-                doc.getElementById('manufacturer').value = 'Prusament';
-                doc.getElementById('material').value = 'PETG';
-                doc.getElementById('color').value = 'Orange';
-                doc.getElementById('temp1').value = '240';
-                doc.getElementById('temp2').value = '85';
+                manufacturer.value = 'Prusament';
+                material.value = 'PETG';
+                color.value = 'Orange';
+                temp1.value = '240';
+                temp2.value = '85';
                 
                 log('Form filled with test data', 'success');
             } catch (error) {
@@ -129,7 +141,7 @@
         async function generateQR() {
             try {
                 const frame = document.getElementById('generatorFrame');
-                const doc = frame.contentDocument;
+                const doc = frame.contentDocument || frame.contentWindow.document;
                 
                 // Click generate button
                 const generateBtn = doc.querySelector('.generate-btn');
@@ -157,7 +169,7 @@
         async function saveToInventory() {
             try {
                 const frame = document.getElementById('generatorFrame');
-                const doc = frame.contentDocument;
+                const doc = frame.contentDocument || frame.contentWindow.document;
                 
                 // Click save button
                 const saveBtn = doc.getElementById('saveToInventoryBtn');
@@ -188,7 +200,7 @@
                 frame.src = frame.src;
                 
                 setTimeout(() => {
-                    const doc = frame.contentDocument;
+                    const doc = frame.contentDocument || frame.contentWindow.document;
                     const entries = doc.querySelectorAll('.entry-card-grid, .entries-table tr');
                     log(`Found ${entries.length} entries in inventory view`, 'success');
                     
@@ -220,8 +232,44 @@
             log('Full test sequence completed!', 'success');
         }
         
-        // Initialize
-        log('Test environment ready');
+        // Wait for iframes to load
+        function waitForIframes() {
+            const generatorFrame = document.getElementById('generatorFrame');
+            const inventoryFrame = document.getElementById('inventoryFrame');
+            let attempts = 0;
+            
+            function checkFrames() {
+                attempts++;
+                try {
+                    const genDoc = generatorFrame.contentDocument || generatorFrame.contentWindow.document;
+                    const invDoc = inventoryFrame.contentDocument || inventoryFrame.contentWindow.document;
+                    
+                    // Check if critical elements exist
+                    const formReady = genDoc && genDoc.getElementById('manufacturer');
+                    const inventoryReady = invDoc && invDoc.getElementById('entriesList');
+                    
+                    if (formReady && inventoryReady) {
+                        log('Test environment ready - both frames loaded', 'success');
+                    } else if (attempts < 10) {
+                        setTimeout(checkFrames, 500);
+                    } else {
+                        log('Warning: Some frames may not be fully loaded', 'error');
+                    }
+                } catch (e) {
+                    if (attempts < 10) {
+                        setTimeout(checkFrames, 500);
+                    } else {
+                        log('Error loading frames: ' + e.message, 'error');
+                    }
+                }
+            }
+            
+            setTimeout(checkFrames, 1000);
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', waitForIframes);
+        log('Test environment initializing...');
     </script>
 </body>
 </html>
