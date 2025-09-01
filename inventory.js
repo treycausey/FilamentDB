@@ -57,14 +57,14 @@ document.querySelectorAll('.view-toggle').forEach(btn => {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    loadSavedEntries();
+    // Ensure elements exist before populating options
     initializeCloudStorage();
     setupColorPicker();
-    // Grab filter selects now that DOM is ready
     manufacturerFilter = document.getElementById('manufacturerFilter');
     materialFilter = document.getElementById('materialFilter');
     colorFilter = document.getElementById('colorFilter');
     bindFilterSelects();
+    loadSavedEntries();
 });
 
 // Storage functions
