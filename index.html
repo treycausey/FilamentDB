@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude QR Code Reader</title>
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="QR Scanner">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-header">
+            <h1>Claude QR Code Reader</h1>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link active">Scanner</a>
+                <a href="inventory.html" class="nav-link">Inventory</a>
+                <a href="generator.html" class="nav-link">Generator</a>
+            </div>
+        </nav>
+        
+        <div class="upload-section">
+            <div class="upload-options">
+                <div class="upload-box">
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                    <label for="fileInput" class="upload-button">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Choose File</span>
+                    </label>
+                </div>
+
+                <div class="camera-box">
+                    <button id="cameraButton" class="camera-button">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Scan with Camera</span>
+                    </button>
+                </div>
+                
+                <div class="paste-box">
+                    <button id="pasteButton" class="paste-button">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        <span>Paste from Clipboard</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="paste-area" id="pasteArea">
+                <p>Or paste an image here (Ctrl+V / Cmd+V)</p>
+            </div>
+        </div>
+        
+        <div id="imagePreview" class="image-preview hidden">
+            <h2>Image Preview</h2>
+            <img id="previewImage" alt="QR Code Image">
+        </div>
+        
+        <div id="resultSection" class="result-section hidden">
+            <h2>QR Code Content</h2>
+            <div id="resultContent" class="result-content"></div>
+            <div class="action-buttons">
+                <button id="saveButton" class="save-button">Save Entry</button>
+                <button id="clearButton" class="clear-button">Clear</button>
+            </div>
+        </div>
+        
+        <div id="recentScans" class="recent-scans-section">
+            <div class="recent-header">
+                <h2>Recent Scans</h2>
+                <a href="inventory.html" class="view-all-link">View All →</a>
+            </div>
+            <div id="recentList" class="recent-list"></div>
+        </div>
+        
+        <div id="errorMessage" class="error-message hidden"></div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="camera-modal hidden">
+        <div class="camera-content">
+            <div class="camera-header">
+                <h2>Scan QR Code with Camera</h2>
+                <button id="closeCameraButton" class="close-camera">×</button>
+            </div>
+            <div class="camera-body">
+                <div class="camera-container">
+                    <video id="cameraVideo" autoplay playsinline></video>
+                    <canvas id="cameraCanvas" hidden></canvas>
+                    <div class="scan-overlay">
+                        <div class="scan-frame"></div>
+                    </div>
+                </div>
+                <div class="camera-status">
+                    <div id="scanStatus" class="scan-status">Point camera at QR code</div>
+                </div>
+            </div>
+            <div class="camera-controls">
+                <button id="switchCameraButton" class="switch-camera-btn">Switch Camera</button>
+                <button id="closeCameraBtn" class="close-camera-btn">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="color-detection.js"></script>
+    <script src="color-utils.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

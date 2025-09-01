@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Generator - Claude QR Code Reader</title>
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="QR Scanner">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-header">
+            <h1>QR Code Generator</h1>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Scanner</a>
+                <a href="inventory.html" class="nav-link">Inventory</a>
+                <a href="generator.html" class="nav-link active">Generator</a>
+            </div>
+        </nav>
+        
+        <div class="generator-section">
+            <div class="form-section">
+                <h2>Create Filament QR Code</h2>
+                <p class="form-description">Enter your filament details to generate a QR code for your spool.</p>
+                
+                <form id="qrForm" class="qr-form">
+                    <div class="form-group">
+                        <label for="manufacturer">Manufacturer *</label>
+                        <input type="text" id="manufacturer" name="manufacturer" required 
+                               placeholder="e.g., Hatchbox, eSUN, PETG">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="material">Material *</label>
+                        <select id="material" name="material" required>
+                            <option value="">Select Material</option>
+                            <option value="PLA">PLA</option>
+                            <option value="PLA+">PLA+</option>
+                            <option value="ABS">ABS</option>
+                            <option value="PETG">PETG</option>
+                            <option value="TPU">TPU</option>
+                            <option value="WOOD">WOOD</option>
+                            <option value="Metal">Metal</option>
+                            <option value="Carbon Fiber">Carbon Fiber</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="customMaterial" name="customMaterial" 
+                               placeholder="Enter custom material type" 
+                               class="custom-material-input hidden">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="color">Color *</label>
+                        <div class="color-input-group">
+                            <input type="text" id="color" name="color" required 
+                                   placeholder="e.g., Black, White, Red, Blue">
+                            <button type="button" id="colorDetectorBtn" class="color-detector-btn" title="Detect color with camera">
+                                📷
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="temp1">Temperature 1 (°C)</label>
+                            <input type="number" id="temp1" name="temp1" min="0" max="350"
+                                   placeholder="e.g., 210">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="temp2">Temperature 2 (°C)</label>
+                            <input type="number" id="temp2" name="temp2" min="0" max="350"
+                                   placeholder="e.g., 60">
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="generate-btn">Generate QR Code</button>
+                        <button type="reset" class="reset-btn">Clear Form</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="preview-section">
+                <div id="qrPreview" class="qr-preview hidden">
+                    <h2>Generated QR Code</h2>
+                    <div class="qr-container">
+                        <div id="qrCodeDisplay" class="qr-display"></div>
+                    </div>
+                    
+                    <div class="qr-info">
+                        <h3>Filament Information</h3>
+                        <div id="qrData" class="qr-data"></div>
+                    </div>
+                    
+                    <div class="qr-actions">
+                        <button id="downloadBtn" class="download-btn">Download PNG</button>
+                        <button id="downloadSvgBtn" class="download-svg-btn">Download SVG</button>
+                        <button id="printBtn" class="print-btn">Print</button>
+                        <button id="saveToInventoryBtn" class="save-inventory-btn">Save to Inventory</button>
+                    </div>
+                </div>
+                
+                <div id="qrPlaceholder" class="qr-placeholder">
+                    <div class="placeholder-icon">📱</div>
+                    <h3>QR Code Preview</h3>
+                    <p>Fill out the form to generate your QR code</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="shared-qr-processing.js"></script>
+    <script src="simple-qr.js"></script>
+    <script src="color-detection.js"></script>
+    <script src="color-utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        // QR Library initialization and fallback management
+        window.QRGenerator = {
+            ready: false,
+            useSimple: false,
+            method: 'unknown'
+        };
+        
+        function initializeQRLibrary() {
+            // Check for primary QRCode library first
+            if (typeof QRCode !== 'undefined' && QRCode.toCanvas) {
+                console.log('✓ Primary QRCode library loaded successfully');
+                window.QRGenerator.ready = true;
+                window.QRGenerator.method = 'QRCode.js';
+                return;
+            }
+            
+            // Try local QRious library
+            if (typeof QRious !== 'undefined') {
+                console.log('✓ QRious library loaded, creating QRCode interface');
+                window.QRCode = {
+                    toCanvas: function(canvas, text, options) {
+                        return new Promise((resolve, reject) => {
+                            try {
+                                const qr = new QRious({
+                                    element: canvas,
+                                    value: text,
+                                    size: options.width || 300,
+                                    level: options.errorCorrectionLevel || 'M'
+                                });
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        });
+                    },
+                    toDataURL: function(text, options) {
+                        return new Promise((resolve, reject) => {
+                            try {
+                                const canvas = document.createElement('canvas');
+                                const qr = new QRious({
+                                    element: canvas,
+                                    value: text,
+                                    size: options.width || 300,
+                                    level: options.errorCorrectionLevel || 'M'
+                                });
+                                resolve(canvas.toDataURL());
+                            } catch (error) {
+                                reject(error);
+                            }
+                        });
+                    },
+                    toString: function(text, options) {
+                        if (options && options.type === 'svg') {
+                            return Promise.resolve(createSimpleSVG(text, options.width || 300));
+                        }
+                        return this.toDataURL(text, options);
+                    }
+                };
+                window.QRGenerator.ready = true;
+                window.QRGenerator.method = 'QRious';
+                return;
+            }
+            
+            // Fall back to SimpleQR (online services)
+            console.log('⚠ Using SimpleQR fallback (online services)');
+            window.QRGenerator.useSimple = true;
+            window.QRGenerator.method = 'SimpleQR';
+            
+            // Create QRCode-compatible interface using SimpleQR
+            window.QRCode = {
+                toCanvas: SimpleQR.toCanvas,
+                toDataURL: SimpleQR.toDataURL,
+                toString: async function(text, options) {
+                    if (options && options.type === 'svg') {
+                        return createSimpleSVG(text, options.width || 300);
+                    }
+                    return SimpleQR.toDataURL(text, options);
+                }
+            };
+            window.QRGenerator.ready = true;
+        }
+        
+        // Try to load local QRious library if primary fails
+        window.addEventListener('load', function() {
+            initializeQRLibrary();
+            
+            // If no libraries loaded, try loading QRious locally
+            if (!window.QRGenerator.ready || window.QRGenerator.method === 'SimpleQR') {
+                const script = document.createElement('script');
+                script.src = 'qrious.min.js';
+                script.onload = function() {
+                    console.log('✓ Local QRious library loaded');
+                    initializeQRLibrary();
+                };
+                script.onerror = function() {
+                    console.log('⚠ Local QRious library failed, using SimpleQR');
+                    if (!window.QRGenerator.ready) {
+                        initializeQRLibrary();
+                    }
+                };
+                document.head.appendChild(script);
+            }
+        });
+        
+        function createSimpleSVG(text, size) {
+            return `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+                <rect width="${size}" height="${size}" fill="#f8d7da"/>
+                <rect x="10" y="10" width="${size-20}" height="${size-20}" fill="white" stroke="#f5c6cb" stroke-width="2"/>
+                <text x="${size/2}" y="${size/2}" text-anchor="middle" font-family="Arial" font-size="16" fill="#721c24">QR Generation</text>
+                <text x="${size/2}" y="${size/2 + 20}" text-anchor="middle" font-family="Arial" font-size="16" fill="#721c24">Failed</text>
+                <text x="${size/2}" y="${size/2 + 40}" text-anchor="middle" font-family="monospace" font-size="10" fill="#721c24">${text.substring(0, 30)}</text>
+            </svg>`;
+        }
+    </script>
+    <script src="generator.js"></script>
+</body>
+</html>

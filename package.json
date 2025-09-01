@@ -1,0 +1,21 @@
+{
+  "name": "claude-qr-code-reader",
+  "version": "1.0.0",
+  "description": "Claude QR Code Reader Web Application",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx live-server . --port=3000 --host=0.0.0.0",
+    "serve": "npx http-server . -p 3000 -o",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "qr-code",
+    "scanner",
+    "reader"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
