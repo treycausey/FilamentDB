@@ -871,11 +871,13 @@ body {
 }
 
 /* Inventory Actions */
+.inventory-actions,
 .bulk-actions {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .bulk-actions button { padding: var(--space-3) var(--space-4); }

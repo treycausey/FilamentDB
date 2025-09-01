@@ -6,7 +6,7 @@
 
 *Scan QR codes, organize your filament collection, and never lose track of your materials again*
 
-[Demo](#demo) • [Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [License](#license)
+[Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [License](#license)
 
 </div>
 
@@ -25,7 +25,7 @@ FilamentDB is a web-based inventory management system specifically designed for 
 - 🌐 **Offline-First**: Works completely offline - no internet required
 - 🚀 **Fast & Reliable**: Local libraries, no CDN dependencies
 
-## ✨ Features
+## Features
 
 ### 📷 QR Code Scanner
 - **Live camera scanning** with rear camera priority for optimal QR code detection
@@ -69,7 +69,7 @@ FilamentDB is a web-based inventory management system specifically designed for 
 - Custom material types
 - Temperature settings (extruder + bed)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js (for development server and HTTPS mobile support) 
@@ -107,7 +107,7 @@ FilamentDB is a web-based inventory management system specifically designed for 
 ### Alternative: Direct Usage
 You can also open `index.html` directly in a web browser without a server for basic functionality (camera features require HTTPS).
 
-## 📖 Documentation
+## Documentation
 
 ### 🏠 Scanner Page (`index.html`)
 The main entry point for scanning QR codes and viewing recent entries.
@@ -318,7 +318,7 @@ filamentdb/
 - Local Storage (data persistence)
 - Media Devices API (camera access)
 
-## 📄 License
+## License
 
 This project is licensed under **GPL-3.0-or-later** due to the inclusion of the GPL-3.0 licensed QRious library.
 
