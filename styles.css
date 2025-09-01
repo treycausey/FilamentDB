@@ -812,18 +812,19 @@ body {
     gap: var(--space-3);
     margin: 0;
     flex: 1 1 420px;
+    flex-wrap: wrap;
 }
 
 /* Filters row */
-.filter-boxes {
+.filter-boxes,
+.filters-inline {
     display: flex;
     align-items: center;
     gap: var(--space-3);
     flex: 1 1 100%;
     flex-wrap: wrap;
-    margin-top: var(--space-2);
+    margin-top: 0;
 }
-
 .filter-item { flex: 0 1 220px; }
 
 .filter-select {
