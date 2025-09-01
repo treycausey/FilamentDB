@@ -814,6 +814,38 @@ body {
     flex: 1 1 420px;
 }
 
+/* Filters row */
+.filter-boxes {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    margin-top: var(--space-2);
+}
+
+.filter-item { flex: 0 1 220px; }
+
+.filter-select {
+    width: 100%;
+    padding: var(--space-4);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-family);
+    font-size: 0.875rem;
+    transition: all var(--transition-normal);
+    min-height: 48px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: var(--white);
+}
+
 .search-box {
     flex: 2;
     position: relative;
@@ -1496,6 +1528,7 @@ body {
     .search-sort-controls { flex: 1 1 100%; flex-direction: column; }
     .sort-box { flex: 1; }
     .bulk-actions { width: 100%; justify-content: flex-start; }
+    .filter-item { flex: 1 1 100%; }
     
     .inventory-stats {
         grid-template-columns: 1fr;

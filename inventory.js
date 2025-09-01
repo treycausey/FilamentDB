@@ -10,6 +10,10 @@ const cloudSyncButton = document.getElementById('cloudSyncButton');
 const cloudSyncText = document.getElementById('cloudSyncText');
 const emptyState = document.getElementById('emptyState');
 const filterTags = document.getElementById('filterTags');
+// Filter selects (may not exist until DOM is ready)
+let manufacturerFilter = null;
+let materialFilter = null;
+let colorFilter = null;
 
 // Stats elements
 const totalEntriesEl = document.getElementById('totalEntries');
@@ -56,6 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSavedEntries();
     initializeCloudStorage();
     setupColorPicker();
+    // Grab filter selects now that DOM is ready
+    manufacturerFilter = document.getElementById('manufacturerFilter');
+    materialFilter = document.getElementById('materialFilter');
+    colorFilter = document.getElementById('colorFilter');
+    bindFilterSelects();
 });
 
 // Storage functions
@@ -93,6 +102,7 @@ function loadSavedEntries() {
     filteredEntries = [...allEntries];
     
     updateStats();
+    populateFilterOptions();
     
     if (searchInput.value) {
         handleSearch();
@@ -344,6 +354,7 @@ function removeFilter(filterKey) {
 function updateFilterTags() {
     if (activeFilters.size === 0) {
         filterTags.innerHTML = '';
+        syncFilterSelectUI();
         return;
     }
     
@@ -362,6 +373,7 @@ function updateFilterTags() {
             removeFilter(e.target.dataset.filter);
         });
     });
+    syncFilterSelectUI();
 }
 
 function applyFilters() {
@@ -390,6 +402,72 @@ function applyFilters() {
     } else {
         handleSort();
     }
+}
+
+// ===============================
+// Filter Selects (Manufacturer / Material / Color)
+// ===============================
+
+function bindFilterSelects() {
+    if (manufacturerFilter) {
+        manufacturerFilter.addEventListener('change', () => handleFilterSelectChange('manufacturer', manufacturerFilter.value));
+    }
+    if (materialFilter) {
+        materialFilter.addEventListener('change', () => handleFilterSelectChange('material', materialFilter.value));
+    }
+    if (colorFilter) {
+        colorFilter.addEventListener('change', () => handleFilterSelectChange('color', colorFilter.value));
+    }
+}
+
+function handleFilterSelectChange(type, value) {
+    // remove existing of this type
+    Array.from(activeFilters).forEach(key => { if (key.startsWith(type + ':')) activeFilters.delete(key); });
+    if (value) activeFilters.add(`${type}:${value}`);
+    updateFilterTags();
+    applyFilters();
+}
+
+function populateFilterOptions() {
+    const uniques = {
+        manufacturer: Array.from(new Set(allEntries.map(e => e.Manufacturer))).sort((a,b) => a.localeCompare(b)),
+        material: Array.from(new Set(allEntries.map(e => e.Material))).sort((a,b) => a.localeCompare(b)),
+        color: Array.from(new Set(allEntries.map(e => e.Color))).sort((a,b) => a.localeCompare(b))
+    };
+    if (manufacturerFilter) setOptions(manufacturerFilter, ['All Manufacturers', ...uniques.manufacturer], 'All Manufacturers');
+    if (materialFilter) setOptions(materialFilter, ['All Materials', ...uniques.material], 'All Materials');
+    if (colorFilter) setOptions(colorFilter, ['All Colors', ...uniques.color], 'All Colors');
+    syncFilterSelectUI();
+}
+
+function setOptions(selectEl, options, firstLabel) {
+    const current = selectEl.value;
+    selectEl.innerHTML = '';
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = firstLabel;
+    selectEl.appendChild(first);
+    options.slice(1).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        selectEl.appendChild(opt);
+    });
+    // try restore selection
+    selectEl.value = current;
+}
+
+function syncFilterSelectUI() {
+    if (!manufacturerFilter && !materialFilter && !colorFilter) return;
+    const getActive = (type) => {
+        for (const key of activeFilters) {
+            if (key.startsWith(type + ':')) return key.split(':')[1];
+        }
+        return '';
+    };
+    if (manufacturerFilter) manufacturerFilter.value = getActive('manufacturer');
+    if (materialFilter) materialFilter.value = getActive('material');
+    if (colorFilter) colorFilter.value = getActive('color');
 }
 
 function deleteEntry(id) {
