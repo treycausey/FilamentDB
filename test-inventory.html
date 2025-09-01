@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Inventory</title>
+</head>
+<body>
+    <h1>Testing Inventory</h1>
+    <div id="test"></div>
+    
+    <script>
+        // Test localStorage
+        console.log('Testing localStorage...');
+        const testData = localStorage.getItem('qrCodeEntries');
+        console.log('Found entries:', testData);
+        
+        if (testData) {
+            const entries = JSON.parse(testData);
+            console.log('Number of entries:', entries.length);
+            document.getElementById('test').innerHTML = `
+                <p>Found ${entries.length} entries in localStorage</p>
+                <pre>${JSON.stringify(entries[0], null, 2)}</pre>
+            `;
+        } else {
+            document.getElementById('test').innerHTML = '<p>No entries found in localStorage</p>';
+        }
+    </script>
+</body>
+</html>

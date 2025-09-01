@@ -6,6 +6,8 @@ const exportButton = document.getElementById('exportButton');
 const importButton = document.getElementById('importButton');
 const importFile = document.getElementById('importFile');
 const clearAllButton = document.getElementById('clearAllButton');
+const cloudSyncButton = document.getElementById('cloudSyncButton');
+const cloudSyncText = document.getElementById('cloudSyncText');
 const emptyState = document.getElementById('emptyState');
 const filterTags = document.getElementById('filterTags');
 
@@ -18,11 +20,15 @@ const uniqueColorsEl = document.getElementById('uniqueColors');
 // State
 let allEntries = [];
 let filteredEntries = [];
-let currentView = 'grid';
+let currentView = 'list';
 let activeFilters = new Set();
 let tableSortField = null;
 let tableSortDirection = 'asc';
 const STORAGE_KEY = 'qrCodeEntries';
+let colorPickerInput = null;
+let colorInputSupported = null;
+
+// Cloud storage instance (use global window.cloudStorage for consistency)
 
 // Event Listeners
 searchInput.addEventListener('input', handleSearch);
@@ -31,25 +37,51 @@ exportButton.addEventListener('click', exportEntries);
 importButton.addEventListener('click', () => importFile.click());
 importFile.addEventListener('change', handleImport);
 clearAllButton.addEventListener('click', clearAllEntries);
+cloudSyncButton.addEventListener('click', handleCloudSync);
 
 // View toggle
 document.querySelectorAll('.view-toggle').forEach(btn => {
     btn.addEventListener('click', (e) => {
+        const target = e.currentTarget; // ensure button element
         document.querySelectorAll('.view-toggle').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        currentView = e.target.dataset.view;
+        target.classList.add('active');
+        currentView = target.dataset.view;
         entriesList.className = `entries-list ${currentView}-view`;
         displayEntries(filteredEntries);
     });
 });
 
 // Initialize
-document.addEventListener('DOMContentLoaded', loadSavedEntries);
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedEntries();
+    initializeCloudStorage();
+    setupColorPicker();
+});
 
 // Storage functions
 function getStoredEntries() {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const entries = stored ? JSON.parse(stored) : [];
+    
+    // Migrate existing entries to include spoolCount and remainingPercentage fields
+    let needsMigration = false;
+    entries.forEach(entry => {
+        if (!entry.spoolCount) {
+            entry.spoolCount = 1;
+            needsMigration = true;
+        }
+        if (entry.remainingPercentage === undefined) {
+            entry.remainingPercentage = 100;
+            needsMigration = true;
+        }
+    });
+    
+    // Save migrated data back to storage
+    if (needsMigration) {
+        saveToStorage(entries);
+    }
+    
+    return entries;
 }
 
 function saveToStorage(entries) {
@@ -115,6 +147,10 @@ function displayEntries(entries) {
                         <span class="temp">T1: ${entry.Temp1}°</span>
                         <span class="temp">T2: ${entry.Temp2}°</span>
                     </div>
+                    <div class="spool-info">
+                        <span class="spool-count">🧵 ${entry.spoolCount || 1} spool${(entry.spoolCount || 1) > 1 ? 's' : ''}</span>
+                        <span class="remaining-percentage remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}% left</span>
+                    </div>
                 </div>
                 <div class="entry-card-footer">
                     <span class="entry-date">${new Date(entry.timestamp).toLocaleDateString()}</span>
@@ -131,6 +167,8 @@ function displayEntries(entries) {
                         <th data-sort="color">Color</th>
                         <th data-sort="temp1">Temp1</th>
                         <th data-sort="temp2">Temp2</th>
+                        <th data-sort="spools">Spools</th>
+                        <th data-sort="remaining">Remaining</th>
                         <th data-sort="date">Date</th>
                         <th>Actions</th>
                     </tr>
@@ -148,6 +186,8 @@ function displayEntries(entries) {
                             </td>
                             <td>${entry.Temp1}</td>
                             <td>${entry.Temp2}</td>
+                            <td>${entry.spoolCount || 1}</td>
+                            <td class="remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}%</td>
                             <td>${new Date(entry.timestamp).toLocaleDateString()}</td>
                             <td>
                                 <button class="delete-entry table-delete" data-id="${entry.id}">Delete</button>
@@ -175,6 +215,17 @@ function displayEntries(entries) {
         });
     });
     
+    // Add color picker listeners on swatches
+    document.querySelectorAll('.color-indicator').forEach(sw => {
+        sw.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const container = e.target.closest('[data-id]');
+            const row = e.target.closest('tr');
+            const id = container?.dataset.id || row?.dataset.id;
+            if (id) openColorPickerForEntry(id);
+        });
+    });
+    
     // Add click listeners for filtering
     document.querySelectorAll('.manufacturer-badge').forEach(badge => {
         badge.addEventListener('click', (e) => {
@@ -187,6 +238,13 @@ function displayEntries(entries) {
 function getColorHex(colorName) {
     // Use the enhanced color utility that supports 285+ colors
     return ColorUtils.getColorHex(colorName);
+}
+
+function getRemainingCategory(percentage) {
+    if (percentage <= 10) return 'low';
+    if (percentage <= 25) return 'medium';
+    if (percentage <= 50) return 'good';
+    return 'high';
 }
 
 function handleSearch() {
@@ -219,6 +277,17 @@ function sortEntries(entries) {
     const sortValue = sortSelect.value;
     
     switch(sortValue) {
+        case 'color-rainbow':
+            entries.sort((a, b) => {
+                const ha = ColorUtils.hueFromColor(a.Color);
+                const hb = ColorUtils.hueFromColor(b.Color);
+                if (ha === hb) {
+                    // fallback to alphabetical when hues equal or Infinity
+                    return (a.Color || '').localeCompare(b.Color || '');
+                }
+                return ha - hb;
+            });
+            break;
         case 'date-desc':
             entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             break;
@@ -247,6 +316,12 @@ function sortEntries(entries) {
                 const bTemp = b.Temp2 === 'NA' ? Infinity : parseFloat(b.Temp2);
                 return aTemp - bTemp;
             });
+            break;
+        case 'spools':
+            entries.sort((a, b) => (b.spoolCount || 1) - (a.spoolCount || 1));
+            break;
+        case 'remaining':
+            entries.sort((a, b) => (b.remainingPercentage || 100) - (a.remainingPercentage || 100));
             break;
     }
 }
@@ -321,6 +396,125 @@ function deleteEntry(id) {
     if (!confirm('Are you sure you want to delete this entry?')) return;
     
     allEntries = allEntries.filter(entry => entry.id !== id);
+    saveToStorage(allEntries);
+    loadSavedEntries();
+}
+
+// ===============================
+// Color Picker Integration
+// ===============================
+
+function setupColorPicker() {
+    colorInputSupported = isColorInputSupported();
+    colorPickerInput = document.createElement('input');
+    colorPickerInput.setAttribute('type', 'color');
+    colorPickerInput.id = 'colorPickerHiddenInput';
+    // Keep it technically present and focusable for mobile Safari
+    colorPickerInput.style.position = 'fixed';
+    colorPickerInput.style.opacity = '0';
+    colorPickerInput.style.pointerEvents = 'none';
+    colorPickerInput.style.width = '1px';
+    colorPickerInput.style.height = '1px';
+    colorPickerInput.style.bottom = '10px';
+    colorPickerInput.style.right = '10px';
+    colorPickerInput.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(colorPickerInput);
+
+    colorPickerInput.addEventListener('change', (e) => {
+        const id = colorPickerInput.dataset.entryId;
+        if (!id) return;
+        const hex = e.target.value; // Always #RRGGBB
+        const entry = allEntries.find(en => en.id === id);
+        if (!entry) return;
+
+        const rgb = ColorUtils.hexToRgb(hex);
+        let newColor = hex.toUpperCase();
+        if (rgb) {
+            const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
+            if (closest && closest !== 'Unknown') {
+                newColor = closest;
+            }
+        }
+        entry.Color = newColor;
+        saveToStorage(allEntries);
+        loadSavedEntries();
+        // cleanup id so subsequent opens don't accidentally reuse
+        delete colorPickerInput.dataset.entryId;
+    });
+}
+
+function openColorPickerForEntry(id) {
+    const entry = allEntries.find(en => en.id === id);
+    if (!entry || !colorPickerInput) return;
+    const current = getColorHex(entry.Color);
+    const hex = normalizeToHex(current);
+    if (hex) {
+        colorPickerInput.value = hex;
+    }
+    colorPickerInput.dataset.entryId = id;
+    if (colorInputSupported) {
+        // Attempt to open native picker
+        colorPickerInput.focus();
+        colorPickerInput.click();
+    } else {
+        // Fallback prompt for browsers without native color input
+        fallbackColorPrompt(id, hex);
+    }
+}
+
+function normalizeToHex(colorStr) {
+    if (!colorStr) return '#000000';
+    const s = ('' + colorStr).trim();
+    if (/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(s)) {
+        // Expand 3-digit hex to 6-digit
+        if (s.length === 4) {
+            const r = s[1], g = s[2], b = s[3];
+            return ('#' + r + r + g + g + b + b).toUpperCase();
+        }
+        return s.toUpperCase();
+    }
+    const m = s.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (m) {
+        const r = parseInt(m[1], 10), g = parseInt(m[2], 10), b = parseInt(m[3], 10);
+        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
+    }
+    // Fallback: try computing from name then convert if rgb
+    const computed = ColorUtils.getColorHex(s);
+    if (/^#/.test(computed)) return computed.toUpperCase();
+    const m2 = computed.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (m2) {
+        const r = parseInt(m2[1], 10), g = parseInt(m2[2], 10), b = parseInt(m2[3], 10);
+        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
+    }
+    return '#000000';
+}
+
+function isColorInputSupported() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'color');
+    const supported = input.type === 'color';
+    return supported;
+}
+
+function fallbackColorPrompt(id, initialHex) {
+    const current = allEntries.find(e => e.id === id);
+    const currentLabel = current ? current.Color : '';
+    const val = prompt('Enter a color (hex like #FF8800 or name):', initialHex || currentLabel || '#FF6B35');
+    if (!val) return; // canceled
+    let newDisplay = val.trim();
+    // Normalize value
+    if (/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(newDisplay)) {
+        const hex = normalizeToHex(newDisplay);
+        const rgb = ColorUtils.hexToRgb(hex);
+        if (rgb) {
+            const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
+            if (closest && closest !== 'Unknown') newDisplay = closest;
+            else newDisplay = hex.toUpperCase();
+        }
+    }
+    const entry = allEntries.find(e => e.id === id);
+    if (!entry) return;
+    entry.Color = newDisplay;
     saveToStorage(allEntries);
     loadSavedEntries();
 }
@@ -434,6 +628,8 @@ function handleTableSort(field, headerElement) {
         'color': tableSortDirection === 'asc' ? 'color' : 'color-desc',
         'temp1': tableSortDirection === 'asc' ? 'temp1' : 'temp1-desc',
         'temp2': tableSortDirection === 'asc' ? 'temp2' : 'temp2-desc',
+        'spools': tableSortDirection === 'asc' ? 'spools' : 'spools-desc',
+        'remaining': tableSortDirection === 'asc' ? 'remaining' : 'remaining-desc',
         'date': tableSortDirection === 'asc' ? 'date-asc' : 'date-desc'
     };
     
@@ -453,6 +649,8 @@ function handleTableSort(field, headerElement) {
                     'color': 'color',
                     'temp1': 'temp1',
                     'temp2': 'temp2',
+                    'spools': 'spools',
+                    'remaining': 'remaining',
                     'date': tableSortDirection === 'asc' ? 'date-asc' : 'date-desc'
                 };
                 sortSelect.value = simpleMap[field] || 'date-desc';
@@ -462,4 +660,226 @@ function handleTableSort(field, headerElement) {
     
     // Sort and redisplay
     handleSort();
+}
+
+// ========================================
+// Cloud Storage Functions
+// ========================================
+
+// Initialize cloud storage
+function initializeCloudStorage() {
+    if (typeof CloudStorage !== 'undefined') {
+        window.cloudStorage = new CloudStorage();
+    }
+    updateCloudSyncButton();
+}
+
+// Handle cloud sync button click
+async function handleCloudSync() {
+    if (!window.cloudStorage || !window.cloudStorage.isReady()) {
+        // Not configured: take user to Settings to configure
+        window.location.href = 'settings.html';
+        return;
+    }
+    // Configured: run sync immediately
+    await performCloudSync();
+}
+
+// Legacy cloud sync options menu removed (use Settings page instead)
+
+// Show sharing information for adding other devices
+function showSharingInfo(apiKey, storageId) {
+    if (apiKey === 'Unknown' || storageId === 'Unknown') {
+        alert('❌ Storage info not available.\n\nPlease sync first or reconfigure cloud storage.');
+        return;
+    }
+    
+    // Validate the storage ID looks correct
+    if (!storageId || storageId.length < 20) {
+        alert(`❌ Storage ID appears invalid: ${storageId}
+        
+This might be corrupted. Try:
+1. Sync first (option 1)
+2. Or reset and setup fresh (option 3)`);
+        return;
+    }
+    
+    const sharingCode = `${apiKey}|${storageId}`;
+    
+    // Show in a text area for easier copying
+    const textarea = document.createElement('textarea');
+    textarea.value = sharingCode;
+    textarea.style.position = 'fixed';
+    textarea.style.top = '50%';
+    textarea.style.left = '50%';
+    textarea.style.transform = 'translate(-50%, -50%)';
+    textarea.style.width = '80%';
+    textarea.style.height = '100px';
+    textarea.style.zIndex = '10000';
+    textarea.style.fontSize = '12px';
+    textarea.style.fontFamily = 'monospace';
+    textarea.style.border = '2px solid #FF6B35';
+    textarea.style.padding = '10px';
+    textarea.style.borderRadius = '8px';
+    
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.focus();
+    
+    // Add close button to textarea
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ Close';
+    closeBtn.style.position = 'fixed';
+    closeBtn.style.top = 'calc(50% + 60px)';
+    closeBtn.style.left = '50%';
+    closeBtn.style.transform = 'translateX(-50%)';
+    closeBtn.style.zIndex = '10001';
+    closeBtn.style.background = '#FF6B35';
+    closeBtn.style.color = 'white';
+    closeBtn.style.border = 'none';
+    closeBtn.style.padding = '10px 20px';
+    closeBtn.style.borderRadius = '8px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '14px';
+    closeBtn.style.fontWeight = 'bold';
+    
+    closeBtn.onclick = () => {
+        document.body.removeChild(textarea);
+        document.body.removeChild(closeBtn);
+    };
+    
+    document.body.appendChild(closeBtn);
+    
+    alert(`📱 Sharing Code Ready!
+
+The sharing code is selected in the text box.
+Copy it exactly as shown (Ctrl+C / Cmd+C).
+
+API Key: ${apiKey.substring(0, 15)}...
+Storage ID: ${storageId}
+
+Click OK, then copy the code. Click the ✕ Close button when done.`);
+}
+
+// Show reconfigure dialog
+function showReconfigureDialog() { window.location.href = 'settings.html'; }
+
+// Reset cloud storage settings
+// resetCloudStorage moved to Settings workflow
+
+// Show cloud storage setup dialog
+function showCloudSetupDialog() {
+    const setupType = confirm(`Set up Cloud Sync
+
+FilamentDB can sync your inventory across devices using JSONBin.io (free service).
+
+Choose setup type:
+• OK = First device (create new storage)
+• Cancel = Additional device (use existing storage)
+
+Click OK for first device, Cancel for additional devices.`);
+
+    if (setupType) {
+        // First device - create new storage
+        showFirstDeviceSetup();
+    } else {
+        // Additional device - use existing storage
+        showAdditionalDeviceSetup();
+    }
+}
+
+// Setup for first device (creates new storage)
+function showFirstDeviceSetup() { window.location.href = 'settings.html'; }
+
+// Setup for additional devices (uses existing storage)
+function showAdditionalDeviceSetup() { window.location.href = 'settings.html'; }
+
+// Setup cloud storage with API key
+async function setupCloudStorage(apiKey, binId = null) {
+    try {
+        cloudSyncText.textContent = 'Setting up...';
+        cloudSyncButton.disabled = true;
+        
+        await window.cloudStorage.setup(apiKey, binId);
+        
+        // Initial sync after setup
+        await performCloudSync();
+        
+        // Show setup success with sharing info
+        if (!binId) {
+            // New storage created - show sharing info
+            const storageId = window.cloudStorage.binId;
+            alert(`✅ Cloud sync setup successful!
+
+Your inventory is now synced across all devices.
+
+📱 To add other devices:
+1. On other devices, click "Setup Cloud Sync" 
+2. Choose "Additional device"
+3. Enter: ${apiKey}|${storageId}
+
+💾 Save this info somewhere safe for future devices!`);
+        } else {
+            // Existing storage connected
+            alert('✅ Connected to existing cloud storage!\n\nYour inventory is now synced with your other devices.');
+        }
+        
+    } catch (error) {
+        console.error('Cloud storage setup failed:', error);
+        alert(`❌ Setup failed: ${error.message}`);
+    } finally {
+        updateCloudSyncButton();
+        cloudSyncButton.disabled = false;
+    }
+}
+
+// Perform cloud sync
+async function performCloudSync() {
+    try {
+        cloudSyncText.textContent = 'Syncing...';
+        cloudSyncButton.disabled = true;
+        
+        const result = await window.cloudStorage.syncData();
+        
+        if (result.success) {
+            // Reload inventory after sync
+            loadSavedEntries();
+            updateStats();
+            
+            cloudSyncText.textContent = `✅ Synced (${result.mergedCount} items)`;
+            setTimeout(() => updateCloudSyncButton(), 3000);
+            
+            // Show detailed sync info if items were merged
+            if (result.localCount !== result.mergedCount || result.cloudCount !== result.mergedCount) {
+                alert(`✅ Sync successful!\n\nLocal: ${result.localCount} items\nCloud: ${result.cloudCount} items\nTotal: ${result.mergedCount} items`);
+            }
+        } else {
+            throw new Error(result.message);
+        }
+        
+    } catch (error) {
+        console.error('Cloud sync failed:', error);
+        cloudSyncText.textContent = '❌ Sync failed';
+        setTimeout(() => updateCloudSyncButton(), 3000);
+        
+        alert(`❌ Sync failed: ${error.message}\n\nYour local data is safe. Try again later.`);
+    } finally {
+        cloudSyncButton.disabled = false;
+    }
+}
+
+// Update cloud sync button appearance
+function updateCloudSyncButton() {
+    const status = window.cloudStorage?.getStatus();
+    
+    if (!status || !status.configured) {
+        cloudSyncText.textContent = 'Setup Cloud Sync';
+        cloudSyncButton.className = 'cloud-sync-button setup';
+    } else if (status.enabled) {
+        cloudSyncText.textContent = 'Cloud Sync';
+        cloudSyncButton.className = 'cloud-sync-button enabled';
+    } else {
+        cloudSyncText.textContent = 'Cloud Sync (Disabled)';
+        cloudSyncButton.className = 'cloud-sync-button disabled';
+    }
 }

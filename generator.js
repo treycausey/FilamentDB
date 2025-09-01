@@ -16,12 +16,15 @@ const customMaterialField = document.getElementById('customMaterial');
 const colorField = document.getElementById('color');
 const temp1Field = document.getElementById('temp1');
 const temp2Field = document.getElementById('temp2');
+const remainingField = document.getElementById('remaining');
 const colorDetectorBtn = document.getElementById('colorDetectorBtn');
 
 // State
 let currentQRData = null;
 let currentQRCode = null;
 let colorDetector = null;
+let hasPrinted = false;
+let hasSavedToInventory = false;
 
 // Event Listeners
 qrForm.addEventListener('submit', handleFormSubmit);
@@ -35,6 +38,11 @@ colorDetectorBtn.addEventListener('click', startColorDetection);
 
 // Populate form from URL parameters (if coming from inventory)
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize cloud storage if available
+    if (typeof CloudStorage !== 'undefined') {
+        window.cloudStorage = new CloudStorage();
+    }
+    
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('manufacturer')) {
         manufacturerField.value = urlParams.get('manufacturer') || '';
@@ -42,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         colorField.value = urlParams.get('color') || '';
         temp1Field.value = urlParams.get('temp1') || '';
         temp2Field.value = urlParams.get('temp2') || '';
+        remainingField.value = urlParams.get('remaining') || '100';
         
         // Auto-generate if all required fields are present
         if (manufacturerField.value && materialField.value && colorField.value) {
@@ -75,6 +84,7 @@ function handleFormSubmit(e) {
     const color = colorField.value.trim();
     const temp1 = temp1Field.value || 'NA';
     const temp2 = temp2Field.value || 'NA';
+    const remaining = remainingField.value || '100';
     
     // Handle custom material
     if (material === 'Other') {
@@ -111,6 +121,12 @@ function handleFormSubmit(e) {
     
     // Store parsed data (ensures same format as scanned codes)
     currentQRData = validation.data;
+    // Add remaining percentage to the parsed data
+    currentQRData.remainingPercentage = parseInt(remaining) || 100;
+    
+    // Reset tracking flags for new QR code
+    hasPrinted = false;
+    hasSavedToInventory = false;
     
     // Generate QR code
     generateQRCode(qrDataString);
@@ -121,13 +137,16 @@ function handleFormReset() {
     qrPreview.classList.add('hidden');
     qrPlaceholder.classList.remove('hidden');
     
-    // Hide custom material field
+    // Hide custom material field and reset remaining percentage
     customMaterialField.classList.add('hidden');
     customMaterialField.required = false;
     customMaterialField.value = '';
+    remainingField.value = '100';
     
     currentQRData = null;
     currentQRCode = null;
+    hasPrinted = false;
+    hasSavedToInventory = false;
 }
 
 async function generateQRCode(dataString) {
@@ -400,9 +419,36 @@ function createSimpleSVGFallback(dataString, qrData) {
 function printQR() {
     if (!currentQRCode) return;
     
+    // Generate a high-resolution QR code for printing
+    const canvas = document.createElement('canvas');
+    const qrSize = 400; // Higher resolution for crisp printing
+    canvas.width = qrSize;
+    canvas.height = qrSize;
+    
+    // Get the QR data string
+    const qrDataString = [
+        currentQRData.Manufacturer,
+        currentQRData.Material,
+        currentQRData.Color,
+        currentQRData.Temp1,
+        currentQRData.Temp2
+    ].join('\n');
+    
+    // Generate high-res QR code
+    if (typeof QRious !== 'undefined') {
+        new QRious({
+            element: canvas,
+            value: qrDataString,
+            size: qrSize,
+            foreground: '#000000',
+            background: '#FFFFFF'
+        });
+    }
+    
+    const imgSrc = canvas.toDataURL('image/png');
+    
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
-    const imgSrc = currentQRCode.toDataURL('image/png');
     
     printWindow.document.write(`
         <!DOCTYPE html>
@@ -410,44 +456,32 @@ function printQR() {
         <head>
             <title>QR Code - ${currentQRData.Manufacturer} ${currentQRData.Material}</title>
             <style>
+                @media print {
+                    @page { margin: 0.5in; size: auto; }
+                    body { margin: 0; padding: 0; }
+                }
                 body {
                     margin: 0;
                     padding: 20px;
                     font-family: Arial, sans-serif;
                     text-align: center;
+                    background: white;
                 }
                 .qr-print {
                     page-break-inside: avoid;
                 }
                 .qr-image {
-                    max-width: 300px;
-                    height: auto;
-                }
-                .qr-info {
-                    margin-top: 20px;
-                    font-size: 14px;
-                }
-                .info-row {
-                    margin: 5px 0;
-                }
-                .label {
-                    font-weight: bold;
-                }
-                @media print {
-                    body { margin: 0; }
+                    width: 300px;
+                    height: 300px;
+                    margin-bottom: 20px;
+                    image-rendering: -webkit-optimize-contrast;
+                    image-rendering: crisp-edges;
                 }
             </style>
         </head>
         <body>
             <div class="qr-print">
                 <img src="${imgSrc}" alt="QR Code" class="qr-image">
-                <div class="qr-info">
-                    <div class="info-row"><span class="label">Manufacturer:</span> ${currentQRData.Manufacturer}</div>
-                    <div class="info-row"><span class="label">Material:</span> ${currentQRData.Material}</div>
-                    <div class="info-row"><span class="label">Color:</span> ${currentQRData.Color}</div>
-                    <div class="info-row"><span class="label">Temp1:</span> ${currentQRData.Temp1}°C</div>
-                    <div class="info-row"><span class="label">Temp2:</span> ${currentQRData.Temp2}°C</div>
-                </div>
             </div>
         </body>
         </html>
@@ -460,6 +494,7 @@ function printQR() {
         setTimeout(() => {
             printWindow.print();
             printWindow.close();
+            hasPrinted = true; // Mark as printed
         }, 500);
     };
 }
@@ -471,10 +506,15 @@ function saveToInventory() {
     const success = QRProcessor.addToInventory(currentQRData, {
         allowDuplicates: false,
         showConfirmation: true,
-        onSuccess: (data, entries) => {
+        onSuccess: (data, entries, actionType) => {
             console.log('Added generated QR code to inventory:', data);
-            // Show success feedback
-            saveToInventoryBtn.textContent = 'Saved!';
+            hasSavedToInventory = true; // Mark as saved
+            // Show success feedback based on action type
+            if (actionType === 'spool_incremented') {
+                saveToInventoryBtn.textContent = `Spool Count: ${data.spoolCount}`;
+            } else {
+                saveToInventoryBtn.textContent = 'Saved!';
+            }
             saveToInventoryBtn.disabled = true;
             setTimeout(() => {
                 saveToInventoryBtn.textContent = 'Save to Inventory';
@@ -621,3 +661,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // QR library is loaded directly via local file - no waiting needed
+
+// Warning dialog for unsaved printed QR codes
+window.addEventListener('beforeunload', function(e) {
+    // Show warning if user has printed but not saved to inventory
+    if (hasPrinted && !hasSavedToInventory && currentQRData) {
+        const message = 'You have printed a QR code but haven\'t saved it to inventory. Are you sure you want to leave?';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+    }
+});
+

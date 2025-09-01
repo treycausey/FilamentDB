@@ -1,23 +1,52 @@
 {
   "name": "filamentdb",
-  "version": "1.0.0",
-  "description": "FilamentDB - 3D Printing Filament Inventory Management System",
+  "version": "2.0.0",
+  "description": "A beautiful, modern 3D printing filament inventory management system with QR code scanning and cross-device cloud sync",
   "main": "index.html",
+  "homepage": "https://github.com/your-username/filamentdb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/filamentdb.git"
+  },
   "scripts": {
     "dev": "npx live-server . --port=3000 --host=0.0.0.0",
     "serve": "npx http-server . -p 3000 -o",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "mobile": "node mobile-server.js",
+    "mobile-http": "HTTPS=false node mobile-server.js",
+    "test": "node validate.js",
+    "validate": "node validate.js"
   },
   "keywords": [
     "filament",
-    "3d-printing",
+    "3d-printing", 
     "inventory",
     "qr-code",
-    "scanner"
+    "scanner",
+    "cloud-sync",
+    "pwa",
+    "mobile-first",
+    "offline-first"
   ],
-  "author": "",
+  "author": "FilamentDB Contributors",
   "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "devDependencies": {
-    "live-server": "^1.2.2"
-  }
+    "live-server": "^1.2.2",
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {},
+  "files": [
+    "*.html",
+    "*.js",
+    "*.css",
+    "*.json",
+    "*.md",
+    "!node_modules",
+    "!tests.html",
+    "!error-handling-tests.js",
+    "!validate.js"
+  ]
 }

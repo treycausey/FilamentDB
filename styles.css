@@ -467,6 +467,13 @@ body {
     color: var(--gray-400);
 }
 
+.form-helper {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    margin-top: var(--space-1);
+    font-style: italic;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -484,6 +491,15 @@ body {
     color: var(--white);
     border: 1px solid var(--primary);
     flex: 1;
+    padding: var(--space-4) var(--space-6);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-family);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-bounce);
+    min-height: 48px;
+    box-shadow: var(--shadow-md);
 }
 
 .generate-btn:hover {
@@ -496,6 +512,15 @@ body {
     color: var(--gray-700);
     border: 1px solid var(--gray-200);
     flex: 1;
+    padding: var(--space-4) var(--space-6);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-family);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-bounce);
+    min-height: 48px;
+    box-shadow: var(--shadow-md);
 }
 
 .reset-btn:hover {
@@ -689,16 +714,16 @@ body {
 /* Inventory Styles */
 .inventory-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--space-6);
-    margin-bottom: var(--space-8);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
 }
 
 .stat-card {
     background: var(--white);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
-    padding: var(--space-6);
+    padding: var(--space-4);
     text-align: center;
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-normal);
@@ -713,18 +738,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
-    margin: 0 auto var(--space-3);
+    width: 40px;
+    height: 40px;
+    margin: 0 auto var(--space-2);
     background: var(--white);
-    border: 2px solid var(--gray-200);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     transition: all var(--transition-normal);
 }
 
 .stat-icon svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     color: var(--gray-600);
 }
 
@@ -754,32 +779,39 @@ body {
 }
 
 .stat-value {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: var(--primary);
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 .stat-label {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     font-weight: 500;
     color: var(--gray-600);
 }
 
 .inventory-controls {
     background: var(--bg-card);
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-2xl);
-    padding: var(--space-6);
-    margin-bottom: var(--space-8);
+    padding: var(--space-4);
+    margin-bottom: var(--space-6);
     box-shadow: var(--shadow-glass);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
 }
 
 .search-sort-controls {
     display: flex;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    flex: 1 1 420px;
 }
 
 .search-box {
@@ -816,9 +848,7 @@ body {
     font-size: 1.125rem;
 }
 
-.sort-box {
-    flex: 1;
-}
+.sort-box { flex: 0 0 260px; }
 
 .sort-select {
     width: 100%;
@@ -841,16 +871,14 @@ body {
 }
 
 /* Inventory Actions */
-.inventory-actions {
+.bulk-actions {
     display: flex;
+    align-items: center;
     gap: var(--space-3);
-    flex-wrap: wrap;
+    flex: 0 1 auto;
 }
 
-.inventory-actions .btn {
-    font-size: 0.875rem;
-    padding: var(--space-3) var(--space-5);
-}
+.bulk-actions button { padding: var(--space-3) var(--space-4); }
 
 /* Entry Cards */
 .entries-list {
@@ -955,6 +983,7 @@ body {
     border: 2px solid var(--white);
     box-shadow: var(--shadow-md);
     flex-shrink: 0;
+    cursor: pointer;
 }
 
 .temp-info {
@@ -971,6 +1000,59 @@ body {
     font-weight: 500;
     color: var(--gray-700);
 }
+
+.spool-info {
+    margin-top: var(--space-3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.spool-count {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
+}
+
+.remaining-percentage {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.remaining-low {
+    background: linear-gradient(135deg, #FF4444 0%, #CC0000 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+}
+
+.remaining-medium {
+    background: linear-gradient(135deg, #FFD23F 0%, #FFA000 100%);
+    color: #333;
+    box-shadow: 0 2px 4px rgba(255, 210, 63, 0.3);
+}
+
+.remaining-good {
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
+.remaining-high {
+    background: linear-gradient(135deg, var(--gray-200) 0%, var(--gray-300) 100%);
+    color: var(--gray-700);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 
 .entry-card-footer {
     padding-top: var(--space-4);
@@ -1409,9 +1491,9 @@ body {
         min-height: 160px;
     }
     
-    .search-sort-controls {
-        flex-direction: column;
-    }
+    .search-sort-controls { flex: 1 1 100%; flex-direction: column; }
+    .sort-box { flex: 1; }
+    .bulk-actions { width: 100%; justify-content: flex-start; }
     
     .inventory-stats {
         grid-template-columns: 1fr;
@@ -1430,9 +1512,7 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .inventory-actions {
-        justify-content: center;
-    }
+    /* removed legacy .inventory-actions */
     
     .color-detector-btn {
         font-size: 1em;
@@ -1605,7 +1685,8 @@ label:has(svg) {
 
 .export-button,
 .import-button,
-.clear-all-button {
+.clear-all-button,
+.cloud-sync-button {
     background: var(--white);
     color: var(--gray-700);
     border: 1px solid var(--gray-200);
@@ -1618,7 +1699,8 @@ label:has(svg) {
 }
 
 .export-button:hover,
-.import-button:hover {
+.import-button:hover,
+.cloud-sync-button:hover {
     background: var(--gray-50);
     border-color: var(--primary);
     color: var(--primary);
@@ -1630,9 +1712,37 @@ label:has(svg) {
     color: var(--error);
 }
 
+/* Cloud sync button states */
+.cloud-sync-button.enabled {
+    background: #E6F7FF;
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.cloud-sync-button.enabled:hover {
+    background: #BAE7FF;
+}
+
+.cloud-sync-button.setup {
+    background: #FFF7E6;
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.cloud-sync-button.setup:hover {
+    background: #FFE7BA;
+}
+
+.cloud-sync-button.disabled {
+    background: var(--gray-100);
+    color: var(--gray-500);
+    border-color: var(--gray-300);
+}
+
 .export-button svg,
 .import-button svg,
 .clear-all-button svg,
+.cloud-sync-button svg,
 .generate-btn svg,
 .reset-btn svg,
 .download-btn svg,
@@ -1852,6 +1962,20 @@ label:has(svg) {
 }
 
 /* View toggle buttons */
+.entries-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 var(--space-5);
+}
+
+.filter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 var(--space-2);
+}
+
 .view-toggle {
     background: var(--white);
     border: 1px solid var(--gray-200);
@@ -1911,4 +2035,34 @@ label:has(svg) {
 .remove-filter:hover {
     background: rgba(255, 255, 255, 0.3);
     transform: scale(1.1);
+}
+
+/* Print Label Button Styles */
+.print-label-btn {
+    padding: var(--space-4) var(--space-6);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-family);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-bounce);
+    min-height: 48px;
+    box-shadow: var(--shadow-md);
+    background: var(--white);
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.print-label-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.print-label-btn svg {
+    width: 18px;
+    height: 18px;
 }

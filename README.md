@@ -28,26 +28,40 @@ FilamentDB is a web-based inventory management system specifically designed for 
 ## ✨ Features
 
 ### 📷 QR Code Scanner
+- **Live camera scanning** with rear camera priority for optimal QR code detection
 - Scan QR codes from images, camera, or files
 - Drag & drop image upload
 - Paste from clipboard (Ctrl+V / Cmd+V)  
 - Automatic filament data extraction
 - Recent scans history
+- **HTTPS support** for mobile camera access via `npm run mobile`
 
 ### 🏷️ QR Code Generator
 - Create QR codes for your filament spools
 - Professional format with embedded text overlay
 - Download as PNG or SVG
 - Print-ready output with filament details
-- Color detection via camera
+- **AI-powered color detection** via camera
+- **Universal printing support for any printer**
+- Direct save to inventory
 
 ### 📦 Inventory Management  
-- Complete filament database with 285+ supported colors
+- Complete filament database with **285+ supported colors**
 - Smart search and filtering
-- Sort by manufacturer, material, color, or date
+- Default rainbow color sort (ROYGBIV) with additional date/manufacturer/material sorts
 - Statistics dashboard (total entries, unique colors, materials)
-- Bulk operations (export, import, clear all)
-- Tag-based organization
+- Bulk operations (export CSV, import CSV, clear all)
+- **Grid and list view modes** (List is default)
+- Tag-based organization with click-to-filter
+ - Click a color swatch to edit the color with a native color picker (stores closest known color name when possible)
+
+### ☁️ **NEW: Cross-Device Cloud Sync**
+- **Sync inventory across multiple devices** using JSONBin.io
+- **Real-time synchronization** when adding/scanning items
+- **Multi-device setup** with secure sharing codes
+- **Offline-first** with automatic cloud backup
+- **Data merging** prevents duplicates across devices
+- **Private & secure** - your data, your API key
 
 ### 🎨 Supported Materials
 - PLA, PLA+, ABS, PETG, TPU
@@ -58,7 +72,7 @@ FilamentDB is a web-based inventory management system specifically designed for 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (for development server) 
+- Node.js (for development server and HTTPS mobile support) 
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 
 ### Installation
@@ -74,15 +88,24 @@ FilamentDB is a web-based inventory management system specifically designed for 
    npm install
    ```
 
-3. **Start the development server**
+3. **Choose your server option:**
+
+   **Option A: Standard Development Server**
    ```bash
    npm start
    ```
-   
    The app will open at `http://localhost:3000`
 
+   **Option B: HTTPS Mobile Server (Recommended for camera features)**
+   ```bash
+   npm run mobile
+   ```
+   The app will open at `https://localhost:3000` with self-signed certificates
+   
+   *Accept the security warning to enable camera access on mobile devices*
+
 ### Alternative: Direct Usage
-You can also open `index.html` directly in a web browser without a server for basic functionality.
+You can also open `index.html` directly in a web browser without a server for basic functionality (camera features require HTTPS).
 
 ## 📖 Documentation
 
@@ -110,12 +133,33 @@ Create professional QR codes for your filament spools.
 Comprehensive filament collection management.
 
 **Features:**
-- Grid and list view modes
+- Grid and list view modes (List default)
 - Advanced search and filtering
-- Sort by any field
+- Default rainbow color sort (ROYGBIV), with additional sort options
 - Statistics dashboard
-- Export/import functionality
-- Tag management
+- Export/import functionality (CSV format)
+- Tag management with click-to-filter
+- **Cloud sync integration** for cross-device access (configure in Settings)
+
+### ☁️ Cloud Sync Setup
+
+All cloud configuration now lives in the dedicated Settings page.
+
+**First Device (create storage):**
+1. Go to [JSONBin.io](https://jsonbin.io) and create a free account
+2. Copy your API key from your profile
+3. Open Settings → Cloud Sync → "Setup (New Storage)"
+4. Paste your API key. The app creates storage and shows a sharing code
+
+**Additional Device (join existing):**
+1. On your first device, copy the sharing code from Settings → "Show Sharing Info"
+2. On the new device, open Settings → "Setup (Additional Device)"
+3. Paste the sharing code (`API_KEY|STORAGE_ID`) and connect
+
+**Usage:**
+- Inventory page "Cloud Sync" button runs Sync Now if configured, or opens Settings if not
+- Smart merging prevents duplicates across devices
+- Reset/disable/toggle available in Settings
 
 ### 🛠️ Data Format
 
@@ -132,6 +176,32 @@ Temperature 2 (e.g., "60")
 **Temperature Guidelines:**
 - **Temperature 1**: Extruder/nozzle temperature (°C)
 - **Temperature 2**: Bed temperature (°C)
+
+### 🖨️ Universal Printing
+
+FilamentDB supports printing QR codes on any printer through your browser's standard print dialog.
+
+**How to Print:**
+1. Generate a QR code in the Generator page
+2. Click the **"Print"** button
+3. Use your browser's print dialog to select any connected printer
+4. Choose your preferred paper size and quality settings
+5. Print to any standard printer or label printer
+
+**Print Output:**
+- **High-resolution QR code**: 400px resolution for crisp printing
+- **Clean layout**: QR code only, no additional text
+- **Universal compatibility**: Works with any printer through system print dialog
+- **Optimized rendering**: Sharp edges and maximum contrast for reliable scanning
+
+**Tips for Best Results:**
+- Use high-quality print settings for crisp QR codes
+- White paper or labels provide best contrast
+- Test scan the printed QR code before applying to filament spools
+- For label printers: adjust printer settings to fit your label size
+
+**Safety Warning:**
+The system will warn you before navigating away if you've printed a QR code but haven't saved it to inventory, preventing accidental loss of your filament data.
 
 ## 🎨 Design Philosophy
 
@@ -156,17 +226,21 @@ FilamentDB follows **Dieter Rams' "Less but Better"** design principles:
 
 ## 🧪 Testing
 
-### Test Pages
-FilamentDB includes comprehensive test suites:
+### Test Suites
+FilamentDB includes comprehensive testing:
 
-- **`test-e2e.html`**: End-to-end testing of the complete workflow
-- **`test-generator-flow.html`**: Generator-specific testing with isolated storage
+- **`tests.html`**: Complete test suite with 30+ test cases
+  - Cloud storage functionality tests
+  - Camera integration tests  
+  - QR code processing tests
+  - Inventory management tests
+  - Error handling and regression tests
 
 ### Running Tests
-1. Start the development server: `npm start`
-2. Navigate to test pages:
-   - http://localhost:3000/test-e2e.html
-   - http://localhost:3000/test-generator-flow.html
+1. Start the development server: `npm start` or `npm run mobile`
+2. Navigate to test suite: http://localhost:3000/tests.html
+3. Click "Run All Tests" to execute the complete test battery
+4. View detailed results with pass/fail indicators
 
 ## 🏗️ Architecture
 
@@ -176,15 +250,22 @@ filamentdb/
 ├── index.html              # Scanner page (main entry)
 ├── generator.html           # QR code generator
 ├── inventory.html           # Inventory management
+├── settings.html            # Settings (Cloud Sync, exports)
 ├── app.js                   # Scanner functionality
 ├── generator.js             # Generator functionality  
 ├── inventory.js             # Inventory functionality
+├── settings.js              # Settings page logic
 ├── shared-qr-processing.js  # Shared QR utilities
+├── cloud-storage.js         # Cloud sync functionality
 ├── color-detection.js       # Camera color detection
 ├── color-utils.js           # Color name/hex utilities
 ├── styles.css               # Complete design system
 ├── jsqr-local.js            # QR scanning library
 ├── qrious-local.js          # QR generation library
+├── mobile-server.js         # HTTPS development server
+├── tests.html               # Comprehensive test suite
+├── error-handling-tests.js  # Error handling tests
+├── validate.js              # Code validation script
 └── manifest.json            # PWA configuration
 ```
 
@@ -196,15 +277,19 @@ filamentdb/
 - **PWA**: Offline functionality, mobile experience
 
 ### Data Storage
-- **Local Storage**: All data stored in browser
-- **No Database**: Self-contained, no external dependencies
-- **Privacy-First**: All data stays on your device
+- **Local Storage**: Primary storage in browser (offline-first)
+- **Cloud Sync**: Optional JSONBin.io integration for cross-device access
+- **No Database**: Self-contained, no complex setup required
+- **Privacy-First**: You control your data and API keys
 
 ## 🔧 Development
 
 ### Available Scripts
-- `npm start` / `npm run dev`: Start development server
+- `npm start` / `npm run dev`: Start standard HTTP development server
+- `npm run mobile`: Start HTTPS development server with self-signed certificates
 - `npm run serve`: Alternative HTTP server
+- `node validate.js`: Run code quality validation
+- Open `tests.html`: Run comprehensive test suite
 
 ### Contributing
 1. Fork the repository
@@ -258,8 +343,17 @@ See [LICENSES.md](LICENSES.md) for complete license information and attribution 
 
 ## 📞 Support
 
+### Documentation
+- **[README.md](README.md)**: Complete setup and usage guide
+- **[API.md](API.md)**: Cloud storage API and technical documentation
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Common issues and solutions
+- **[LICENSES.md](LICENSES.md)**: Third-party license information
+
+### Getting Help
 - **Issues**: Report bugs or request features via GitHub issues
-- **Documentation**: Check this README and inline code comments
+- **Tests**: Run `tests.html` to diagnose system functionality
+- **Validation**: Run `node validate.js` to check code quality
+- **Console**: Use browser console (F12) for detailed error messages
 - **Community**: Share your FilamentDB setup with the 3D printing community
 
 ---
