@@ -256,7 +256,10 @@
                         log('Warning: Some frames may not be fully loaded', 'error');
                     }
                 } catch (e) {
-                    if (attempts < 10) {
+                    if (e.message.includes('cross-origin')) {
+                        log('⚠️ CORS Error: Please access this test via http://localhost:3000/test-generator-flow.html', 'error');
+                        log('The test must be run through a web server, not as a file:// URL', 'error');
+                    } else if (attempts < 10) {
                         setTimeout(checkFrames, 500);
                     } else {
                         log('Error loading frames: ' + e.message, 'error');
@@ -267,9 +270,15 @@
             setTimeout(checkFrames, 1000);
         }
         
-        // Initialize when page loads
-        window.addEventListener('load', waitForIframes);
-        log('Test environment initializing...');
+        // Check if running from localhost
+        if (window.location.protocol === 'file:') {
+            log('⚠️ Please access this test via http://localhost:3000/test-generator-flow.html', 'error');
+            log('Run "npm start" and then open the URL above', 'error');
+        } else {
+            // Initialize when page loads
+            window.addEventListener('load', waitForIframes);
+            log('Test environment initializing...');
+        }
     </script>
 </body>
 </html>
