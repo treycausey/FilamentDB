@@ -45,7 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof CloudStorage !== 'undefined') {
         window.cloudStorage = new CloudStorage();
     }
-    
+    // Ensure Suggest button is wired even if script loaded early
+    const btn = document.getElementById('colorSuggestBtn');
+    if (btn && !btn.dataset.boundSuggest) {
+        btn.addEventListener('click', suggestColorFromInput);
+        btn.dataset.boundSuggest = '1';
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('manufacturer')) {
         manufacturerField.value = urlParams.get('manufacturer') || '';
