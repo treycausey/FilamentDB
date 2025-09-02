@@ -393,19 +393,27 @@ function sortEntries(entries) {
     switch(sortValue) {
         case 'color-rainbow':
             entries.sort((a, b) => {
-                // Get HEX values for both entries - prefer ColorHex field, fallback to color name mapping
+                // Prefer exact HEX when available to compute hue
                 const aHex = a.ColorHex || getColorHex(a.Color);
                 const bHex = b.ColorHex || getColorHex(b.Color);
-                
-                // Calculate hue from HEX values
+
                 const ha = ColorUtils.hueFromColor(aHex);
                 const hb = ColorUtils.hueFromColor(bHex);
-                
-                if (ha === hb) {
-                    // fallback to alphabetical when hues equal or Infinity
-                    return (a.Color || '').localeCompare(b.Color || '');
+
+                // Rotate hues to avoid red split across 0°/360° boundary
+                // Pivot at 330° (in the magenta range) so all reds cluster together
+                const PIVOT = 330;
+                const rot = (h) => !isFinite(h) ? Number.POSITIVE_INFINITY : ((h - PIVOT + 360) % 360);
+                const ra = rot(ha);
+                const rb = rot(hb);
+
+                if (ra === rb) {
+                    // Greyscale or identical hue: sort by lightness (approx via hex) then name
+                    const na = (a.Color || '').toLowerCase();
+                    const nb = (b.Color || '').toLowerCase();
+                    return na.localeCompare(nb);
                 }
-                return ha - hb;
+                return ra - rb;
             });
             break;
         case 'date-desc':
