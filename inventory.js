@@ -173,6 +173,7 @@ function displayEntries(entries) {
             <div class="entry-card-grid" data-id="${entry.id}">
                 <div class="entry-card-header">
                     <span class="manufacturer-badge">${entry.Manufacturer}</span>
+                    <button class="edit-manufacturer" data-id="${entry.id}" title="Edit manufacturer" style="margin-left:6px;border:none;background:transparent;cursor:pointer;font-size:14px;line-height:1">✎</button>
                     <button class="delete-entry" data-id="${entry.id}">×</button>
                 </div>
                 <div class="entry-card-body">
@@ -284,6 +285,16 @@ function displayEntries(entries) {
             e.stopPropagation();
             const id = e.currentTarget.closest('[data-id]')?.dataset.id;
             if (id) openColorSelectionFlow(id);
+        });
+    });
+
+    // Manufacturer edit button in grid header
+    document.querySelectorAll('.entry-card-grid .edit-manufacturer').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id || e.currentTarget.closest('[data-id]')?.dataset.id;
+            if (!id) return;
+            handleInlineEdit(id, 'Manufacturer', e.currentTarget);
         });
     });
 
