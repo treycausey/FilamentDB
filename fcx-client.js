@@ -184,5 +184,50 @@
     });
   }
 
-  global.FCX = { fetchVersion, getBestMatch, suggestColor };
+  // Manufacturers list (cached) and multi suggestions for UI
+  const MFR_CACHE_KEY = 'fcx_mfrs_v1';
+  async function getManufacturers() {
+    const cached = readLS(MFR_CACHE_KEY, null);
+    if (cached && cached.ts && (now() - cached.ts < 1000*60*60*24*7)) return cached.list;
+    let list = [];
+    let url = `${ENDPOINT}/manufacturer/?ordering=name`;
+    try {
+      while (url) {
+        const page = await fetchJSON(url);
+        const results = page.results || page;
+        list.push(...results.map(r => r.name).filter(Boolean));
+        url = page.next || null;
+        if (url && !url.startsWith('http')) url = ENDPOINT.replace(/\/$/, '') + url;
+      }
+      list = Array.from(new Set(list));
+      writeLS(MFR_CACHE_KEY, { ts: now(), list });
+    } catch {}
+    return list;
+  }
+
+  async function listSuggestions(hex, material, manufacturer, top = 5) {
+    if (manufacturer) {
+      const best = await fetchManufacturerAndMatch(hex, manufacturer, material);
+      return best ? [best] : [];
+    }
+    const w = startWorker();
+    if (!w) {
+      const single = await getBestMatch(hex, material, null);
+      return single ? [single] : [];
+    }
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      function onMsg(ev) {
+        if (ev.data && ev.data.id === id) {
+          worker.removeEventListener('message', onMsg);
+          resolve(ev.data.result || []);
+        }
+      }
+      worker.addEventListener('message', onMsg);
+      worker.postMessage({ type: 'match', id, hex, material: material || null, top });
+      setTimeout(() => { worker.removeEventListener('message', onMsg); resolve([]); }, 2000);
+    });
+  }
+
+  global.FCX = { fetchVersion, getBestMatch, suggestColor, listSuggestions, getManufacturers };
 })(window);

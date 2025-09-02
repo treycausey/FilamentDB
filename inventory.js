@@ -523,14 +523,10 @@ function setupColorPicker() {
             }
         } catch {}
 
-        if (Array.isArray(suggested) && suggested.length) {
-            // Show simple chooser if multiple suggestions returned (worker path)
-            const choice = await showColorSuggestionsDialog(suggested, hex);
-            if (choice) {
-                entry.Color = choice;
-            } else {
-                entry.Color = hex.toUpperCase();
-            }
+        // Always allow choosing by manufacturer with a dropdown
+        const chosen = await showManufacturerSuggestionsDialog(hex, entry.Material, entry.Manufacturer);
+        if (chosen) {
+            entry.Color = chosen;
         } else if (suggested && suggested.color_name) {
             const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
             const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep generic.`);
@@ -623,6 +619,47 @@ async function showColorSuggestionsDialog(suggestions, hex) {
         cancel.style.marginTop='12px'; cancel.style.padding='8px 10px'; cancel.style.border='1px solid #ddd'; cancel.style.borderRadius='8px'; cancel.style.cursor='pointer';
         cancel.addEventListener('click', ()=>{ cleanup(); resolve(null); });
         panel.appendChild(list); panel.appendChild(cancel); overlay.appendChild(panel); document.body.appendChild(overlay);
+        function cleanup(){ try{ document.body.removeChild(overlay); } catch{} }
+    });
+}
+
+// Manufacturer-aware suggestions dialog
+async function showManufacturerSuggestionsDialog(hex, material, defaultMfr) {
+    if (!window.FCX) return null;
+    const mfrs = await FCX.getManufacturers();
+    let currentMfr = defaultMfr || '';
+    return new Promise(async (resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex='10000';
+        const panel = document.createElement('div');
+        panel.style.position='absolute'; panel.style.top='50%'; panel.style.left='50%'; panel.style.transform='translate(-50%, -50%)';
+        panel.style.background='#fff'; panel.style.borderRadius='12px'; panel.style.padding='16px'; panel.style.width='min(520px, 95vw)'; panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.2)';
+        const title = document.createElement('div'); title.style.fontWeight='700'; title.style.marginBottom='8px'; title.textContent='Color suggestions (filamentcolors.xyz)';
+        const sub = document.createElement('div'); sub.style.fontSize='12px'; sub.style.color='#666'; sub.style.marginBottom='8px'; sub.textContent=`Picked ${hex.toUpperCase()} · Material ${material||'any'}`;
+        const select = document.createElement('select'); select.style.width='100%'; select.style.marginBottom='8px'; select.style.padding='8px'; select.style.border='1px solid #eee'; select.style.borderRadius='8px';
+        const optAll = document.createElement('option'); optAll.value=''; optAll.textContent='All manufacturers'; select.appendChild(optAll);
+        mfrs.forEach(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; select.appendChild(o); });
+        if (currentMfr) select.value = currentMfr;
+        const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px'; list.style.maxHeight='50vh'; list.style.overflow='auto';
+        const cancel = document.createElement('button'); cancel.textContent='Cancel'; cancel.style.marginTop='12px'; cancel.style.padding='8px 10px'; cancel.style.border='1px solid #ddd'; cancel.style.borderRadius='8px'; cancel.style.cursor='pointer';
+        cancel.addEventListener('click', ()=>{ cleanup(); resolve(null); });
+        panel.appendChild(title); panel.appendChild(sub); panel.appendChild(select); panel.appendChild(list); panel.appendChild(cancel); overlay.appendChild(panel); document.body.appendChild(overlay);
+
+        async function reload() {
+            list.innerHTML='Loading…';
+            const sugg = await FCX.listSuggestions(hex, material, select.value || null, 5);
+            list.innerHTML='';
+            if (!sugg || !sugg.length) { const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return; }
+            sugg.forEach(s => {
+                const btn = document.createElement('button');
+                btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance ?? ''}`;
+                btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
+                btn.addEventListener('click', ()=>{ cleanup(); resolve(btn.textContent.split(' · ')[0]); });
+                list.appendChild(btn);
+            });
+        }
+        select.addEventListener('change', reload);
+        reload();
         function cleanup(){ try{ document.body.removeChild(overlay); } catch{} }
     });
 }
