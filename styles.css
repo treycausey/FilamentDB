@@ -1981,6 +1981,16 @@ label:has(svg) {
     gap: var(--space-3);
 }
 
+.refine-color {
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    text-decoration: underline;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0;
+}
+
 .table-delete {
     background: var(--primary);
     color: var(--white);

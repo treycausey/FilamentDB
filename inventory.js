@@ -152,6 +152,7 @@ function displayEntries(entries) {
                         <strong>${entry.Material}</strong>
                         <span class="color-indicator ${entry.ColorHex ? 'fcx' : ''}" title="${entry.ColorHex ? 'HEX: ' + entry.ColorHex : ''}" style="background: ${getEntryHex(entry)}"></span>
                         <span>${entry.Color}</span>
+                        <button class="refine-color" data-id="${entry.id}" title="Refine color">Refine</button>
                     </div>
                     <div class="temp-info">
                         <span class="temp">T1: ${entry.Temp1}°</span>
@@ -192,6 +193,7 @@ function displayEntries(entries) {
                                 <div class="color-cell">
                                     <span class="color-indicator ${entry.ColorHex ? 'fcx' : ''}" title="${entry.ColorHex ? 'HEX: ' + entry.ColorHex : ''}" style="background: ${getEntryHex(entry)}"></span>
                                     ${entry.Color}
+                                    <button class="refine-color" data-id="${entry.id}" title="Refine color">Refine</button>
                                 </div>
                             </td>
                             <td>${entry.Temp1}</td>
@@ -242,6 +244,15 @@ function displayEntries(entries) {
             const container = e.target.closest('[data-id]');
             const row = e.target.closest('tr');
             const id = container?.dataset.id || row?.dataset.id;
+            if (id) openColorSelectionFlow(id);
+        });
+    });
+    
+    // Add refine listeners
+    document.querySelectorAll('.refine-color').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.closest('[data-id]')?.dataset.id;
             if (id) openColorSelectionFlow(id);
         });
     });

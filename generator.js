@@ -418,7 +418,8 @@ function downloadPNG() {
     
     // Create download link
     const link = document.createElement('a');
-    link.download = `${currentQRData.Manufacturer}_${currentQRData.Material}_${currentQRData.Color}_QR.png`;
+    const hexPart = currentQRData.ColorHex ? `_HEX-${currentQRData.ColorHex.replace('#','')}` : '';
+    link.download = `${currentQRData.Manufacturer}_${currentQRData.Material}_${currentQRData.Color}${hexPart}_QR.png`;
     link.href = currentQRCode.toDataURL('image/png');
     
     // Trigger download
@@ -482,7 +483,8 @@ async function downloadSVG() {
         const blob = new Blob([enhancedSvgString], { type: 'image/svg+xml' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.download = `${currentQRData.Manufacturer}_${currentQRData.Material}_${currentQRData.Color}_QR.svg`;
+        const hexPart = currentQRData.ColorHex ? `_HEX-${currentQRData.ColorHex.replace('#','')}` : '';
+        link.download = `${currentQRData.Manufacturer}_${currentQRData.Material}_${currentQRData.Color}${hexPart}_QR.svg`;
         link.href = url;
         
         // Trigger download
@@ -674,12 +676,20 @@ function addTextOverlayToQR(originalCanvas, qrData) {
     // Line 2: Color
     ctx.font = '12px Arial';
     ctx.fillText(qrData.Color, centerX, textStartY + 18);
-    
-    // Line 3: Temperatures (if available)
+
+    // Optional HEX line
+    let nextY = textStartY + 33;
+    if (qrData.ColorHex) {
+        ctx.font = '10px Arial';
+        ctx.fillText(`HEX: ${qrData.ColorHex.toUpperCase()}`, centerX, nextY);
+        nextY += 15;
+    }
+
+    // Temperatures (if available)
     if (qrData.Temp1 !== 'NA' || qrData.Temp2 !== 'NA') {
         ctx.font = '10px Arial';
         const tempText = `T1: ${qrData.Temp1}°C | T2: ${qrData.Temp2}°C`;
-        ctx.fillText(tempText, centerX, textStartY + 33);
+        ctx.fillText(tempText, centerX, nextY);
     }
     
     return canvas;
@@ -711,10 +721,20 @@ function addTextOverlayToSVG(svgString, qrData) {
             ${qrData.Color}
         </text>`;
     
+    // Add HEX if present
+    let nextY = ${textStartY + 33};
+    if (qrData.ColorHex) {
+        textElements += `
+        <text x="${centerX}" y="${textStartY + 33}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#000000">
+            HEX: ${qrData.ColorHex}
+        </text>`;
+        nextY = ${textStartY + 48};
+    }
+
     // Add temperature info if available
     if (qrData.Temp1 !== 'NA' || qrData.Temp2 !== 'NA') {
         textElements += `
-        <text x="${centerX}" y="${textStartY + 33}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#000000">
+        <text x="${centerX}" y="${nextY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#000000">
             T1: ${qrData.Temp1}°C | T2: ${qrData.Temp2}°C
         </text>`;
     }
