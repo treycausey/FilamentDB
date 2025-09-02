@@ -24,6 +24,7 @@ const colorSuggestBtn = document.getElementById('colorSuggestBtn');
 let currentQRData = null;
 let currentQRCode = null;
 let colorDetector = null;
+let suggestedColorHex = null; // holds HEX chosen from suggestions
 let hasPrinted = false;
 let hasSavedToInventory = false;
 
@@ -86,7 +87,7 @@ async function suggestColorFromInput() {
         const material = materialField.value || undefined;
         const manufacturer = manufacturerField.value || undefined;
         const choice = await showManufacturerSuggestionsDialogForGen(hex, material, manufacturer);
-        if (choice) colorField.value = choice;
+        if (choice) { colorField.value = choice.label; suggestedColorHex = choice.hex || null; }
     } catch (e) {
         // silent failure
     }
@@ -172,7 +173,7 @@ async function showManufacturerSuggestionsDialogForGen(hex, material, defaultMfr
                 const btn = document.createElement('button');
                 btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance ?? ''}`;
                 btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
-                btn.addEventListener('click', ()=>{ cleanup(); resolve(btn.textContent.split(' · ')[0]); });
+                btn.addEventListener('click', ()=>{ cleanup(); resolve({ label: btn.textContent.split(' · ')[0], hex: s.hex_color || '' }); });
                 list.appendChild(btn);
             });
         }
@@ -228,6 +229,7 @@ function handleFormSubmit(e) {
     
     // Store parsed data (ensures same format as scanned codes)
     currentQRData = validation.data;
+    if (suggestedColorHex) currentQRData.ColorHex = suggestedColorHex.toUpperCase();
     // Add remaining percentage to the parsed data
     currentQRData.remainingPercentage = parseInt(remaining) || 100;
     
