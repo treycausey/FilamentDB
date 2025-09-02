@@ -746,13 +746,13 @@ function addTextOverlayToSVG(svgString, qrData) {
         </text>`;
     
     // Add HEX if present
-    let nextY = ${textStartY + 33};
+    let nextY = textStartY + 33;
     if (qrData.ColorHex) {
         textElements += `
         <text x="${centerX}" y="${textStartY + 33}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#000000">
             HEX: ${qrData.ColorHex}
         </text>`;
-        nextY = ${textStartY + 48};
+        nextY = textStartY + 48;
     }
 
     // Add temperature info if available
