@@ -8,6 +8,7 @@ const importFile = document.getElementById('importFile');
 const clearAllButton = document.getElementById('clearAllButton');
 const cloudSyncButton = document.getElementById('cloudSyncButton');
 const cloudSyncText = document.getElementById('cloudSyncText');
+const revertCloudButton = document.getElementById('revertCloudButton');
 const emptyState = document.getElementById('emptyState');
 const filterTags = document.getElementById('filterTags');
 // Filter selects (may not exist until DOM is ready)
@@ -44,6 +45,7 @@ importButton.addEventListener('click', () => importFile.click());
 importFile.addEventListener('change', handleImport);
 clearAllButton.addEventListener('click', clearAllEntries);
 cloudSyncButton.addEventListener('click', handleCloudSync);
+if (revertCloudButton) revertCloudButton.addEventListener('click', revertToCloudSnapshot);
 
 // View toggle
 document.querySelectorAll('.view-toggle').forEach(btn => {
@@ -202,6 +204,7 @@ function displayEntries(entries) {
                         <th data-sort="manufacturer">Manufacturer</th>
                         <th data-sort="material">Material</th>
                         <th data-sort="color">Color</th>
+                        <th data-sort="hex">HEX</th>
                         <th data-sort="temp1">Temp1</th>
                         <th data-sort="temp2">Temp2</th>
                         <th data-sort="spools">Spools</th>
@@ -213,19 +216,20 @@ function displayEntries(entries) {
                 <tbody>
                     ${entries.map(entry => `
                         <tr data-id="${entry.id}">
-                            <td>${entry.Manufacturer}</td>
-                            <td>${entry.Material}</td>
+                            <td class="editable" data-field="Manufacturer">${entry.Manufacturer}</td>
+                            <td class="editable" data-field="Material">${entry.Material}</td>
                             <td>
                                 <div class="color-cell">
                                     <span class="color-indicator ${entry.ColorHex ? 'fcx' : ''}" title="${entry.ColorHex ? 'HEX: ' + entry.ColorHex : ''}" style="background: ${getEntryHex(entry)}"></span>
-                                    ${entry.Color}
+                                    <span class="editable" data-field="Color">${entry.Color}</span>
                                     <button class="refine-color" data-id="${entry.id}" title="Refine color">Refine</button>
                                 </div>
                             </td>
-                            <td>${entry.Temp1}</td>
-                            <td>${entry.Temp2}</td>
+                            <td class="hex-value">${(getEntryHex(entry) || '').toUpperCase()}</td>
+                            <td class="editable" data-field="Temp1">${entry.Temp1}</td>
+                            <td class="editable" data-field="Temp2">${entry.Temp2}</td>
                             <td><span class="edit-spool spool-count editable" title="Edit spools">${entry.spoolCount || 1}</span></td>
-                            <td class="remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}%</td>
+                            <td class="editable remaining-${getRemainingCategory(entry.remainingPercentage || 100)}" data-field="remainingPercentage">${entry.remainingPercentage || 100}%</td>
                             <td>${new Date(entry.timestamp).toLocaleDateString()}</td>
                             <td>
                                 <button class="delete-entry table-delete" data-id="${entry.id}">Delete</button>
@@ -280,6 +284,17 @@ function displayEntries(entries) {
             e.stopPropagation();
             const id = e.currentTarget.closest('[data-id]')?.dataset.id;
             if (id) openColorSelectionFlow(id);
+        });
+    });
+
+    // Add generic edit listeners for table cells (except HEX/action/date)
+    document.querySelectorAll('.entries-table td.editable').forEach(td => {
+        td.addEventListener('click', (e) => {
+            const tr = td.closest('tr');
+            const id = tr?.dataset.id;
+            const field = td.dataset.field;
+            if (!id || !field) return;
+            handleInlineEdit(id, field, td);
         });
     });
     
@@ -1162,6 +1177,7 @@ function handleTableSort(field, headerElement) {
         'manufacturer': tableSortDirection === 'asc' ? 'manufacturer' : 'manufacturer-desc',
         'material': tableSortDirection === 'asc' ? 'material' : 'material-desc',
         'color': tableSortDirection === 'asc' ? 'color' : 'color-desc',
+        'hex': 'color',
         'temp1': tableSortDirection === 'asc' ? 'temp1' : 'temp1-desc',
         'temp2': tableSortDirection === 'asc' ? 'temp2' : 'temp2-desc',
         'spools': tableSortDirection === 'asc' ? 'spools' : 'spools-desc',
@@ -1198,6 +1214,52 @@ function handleTableSort(field, headerElement) {
     handleSort();
 }
 
+// ===============================
+// Inline Editing
+// ===============================
+
+function handleInlineEdit(id, field, cellEl) {
+    const entryIndex = allEntries.findIndex(e => e.id === id);
+    if (entryIndex === -1) return;
+    const current = allEntries[entryIndex];
+    let initial = '';
+    if (field === 'remainingPercentage') {
+        initial = String(current.remainingPercentage ?? 100);
+    } else {
+        initial = String(current[field] ?? '');
+    }
+
+    const label = field === 'remainingPercentage' ? 'Remaining % (0-100)' : field;
+    const val = prompt(`Edit ${label}:`, initial);
+    if (val === null) return; // cancelled
+    let newValue = val.trim();
+    if (field === 'remainingPercentage') {
+        const n = parseInt(newValue, 10);
+        if (isNaN(n) || n < 0 || n > 100) { alert('Enter a number 0-100.'); return; }
+        current.remainingPercentage = n;
+    } else if (field === 'Temp1' || field === 'Temp2') {
+        // Allow NA or any short string
+        if (!newValue) newValue = 'NA';
+        current[field] = newValue;
+    } else if (field === 'Color') {
+        current.Color = newValue || current.Color;
+        // If user typed a HEX, record it too
+        if (/^#([A-Fa-f0-9]{6})$/.test(newValue)) {
+            current.ColorHex = newValue.toUpperCase();
+        }
+    } else {
+        current[field] = newValue || current[field];
+    }
+
+    // Persist
+    allEntries[entryIndex] = { ...current };
+    saveToStorage(allEntries);
+    filteredEntries = [...allEntries];
+    if (searchInput.value) { handleSearch(); } else { handleSort(); }
+    displayEntries(filteredEntries);
+    updateStats();
+}
+
 // ========================================
 // Cloud Storage Functions
 // ========================================
@@ -1219,6 +1281,34 @@ async function handleCloudSync() {
     }
     // Configured: run sync immediately
     await performCloudSync();
+}
+
+// Restore local inventory from the current cloud snapshot (destructive)
+async function revertToCloudSnapshot() {
+    if (!window.cloudStorage || !window.cloudStorage.isReady()) {
+        const go = confirm('Cloud Sync is not configured. Open Settings to configure?');
+        if (go) window.location.href = 'settings.html';
+        return;
+    }
+    const ok = confirm('This will REPLACE your local inventory with the copy stored in Cloud Sync. Continue?');
+    if (!ok) return;
+    try {
+        revertCloudButton.disabled = true;
+        revertCloudButton.textContent = 'Reverting…';
+        const result = await window.cloudStorage.downloadData();
+        const cloud = Array.isArray(result.data) ? result.data : [];
+        // Ensure IDs exist
+        cloud.forEach(e => { if (!e.id) e.id = Date.now().toString() + Math.random().toString(36).substr(2,9); else e.id = String(e.id); });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud));
+        loadSavedEntries();
+        alert(`Restored ${cloud.length} items from cloud.`);
+    } catch (e) {
+        alert('Restore from cloud failed: ' + e.message);
+        console.error(e);
+    } finally {
+        revertCloudButton.disabled = false;
+        revertCloudButton.textContent = 'Revert to Cloud';
+    }
 }
 
 // Legacy cloud sync options menu removed (use Settings page instead)
