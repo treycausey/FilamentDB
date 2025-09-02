@@ -22,7 +22,7 @@ class ColorUtils {
             }
         }
         
-        // Fallback to basic color mapping for backwards compatibility
+        // Expanded color mapping for better color name recognition
         const basicColors = {
             'black': '#000000',
             'white': '#FFFFFF',
@@ -45,7 +45,24 @@ class ColorUtils {
             'navy': '#000080',
             'olive': '#808000',
             'teal': '#008080',
-            'aqua': '#00FFFF'
+            'aqua': '#00FFFF',
+            // Additional wood/natural colors
+            'walnut': '#8B4513',
+            'oak': '#D2B48C',
+            'tan': '#D2B48C',
+            'beige': '#F5F5DC',
+            'khaki': '#F0E68C',
+            'wood': '#8B4513',
+            'mahogany': '#C04000',
+            'cherry': '#DE3163',
+            'maple': '#D2B48C',
+            'pine': '#DEB887',
+            'cedar': '#A0522D',
+            'bamboo': '#C7B377',
+            'sand': '#C2B280',
+            'cream': '#FFFDD0',
+            'ivory': '#FFFFF0',
+            'champagne': '#F7E7CE'
         };
         
         // Check basic colors first (case insensitive)
@@ -55,6 +72,15 @@ class ColorUtils {
         }
         
         // Try to find partial matches for complex color names
+        // Check word-by-word to handle compound names better
+        const words = lowerColorName.split(/[\s\-\(\)]+/).filter(word => word.length > 0);
+        for (const word of words) {
+            if (basicColors[word]) {
+                return basicColors[word];
+            }
+        }
+        
+        // Fallback to substring matching
         for (const [basicColor, hex] of Object.entries(basicColors)) {
             if (lowerColorName.includes(basicColor)) {
                 return hex;

@@ -315,11 +315,14 @@ function sortEntries(entries) {
     switch(sortValue) {
         case 'color-rainbow':
             entries.sort((a, b) => {
-                // Prioritize ColorHex field, fallback to color name
+                // Get HEX values for both entries - prefer ColorHex field, fallback to color name mapping
                 const aHex = a.ColorHex || getColorHex(a.Color);
                 const bHex = b.ColorHex || getColorHex(b.Color);
+                
+                // Calculate hue from HEX values
                 const ha = ColorUtils.hueFromColor(aHex);
                 const hb = ColorUtils.hueFromColor(bHex);
+                
                 if (ha === hb) {
                     // fallback to alphabetical when hues equal or Infinity
                     return (a.Color || '').localeCompare(b.Color || '');
