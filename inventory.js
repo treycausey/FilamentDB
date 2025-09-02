@@ -315,8 +315,11 @@ function sortEntries(entries) {
     switch(sortValue) {
         case 'color-rainbow':
             entries.sort((a, b) => {
-                const ha = ColorUtils.hueFromColor(a.Color);
-                const hb = ColorUtils.hueFromColor(b.Color);
+                // Prioritize ColorHex field, fallback to color name
+                const aHex = a.ColorHex || getColorHex(a.Color);
+                const bHex = b.ColorHex || getColorHex(b.Color);
+                const ha = ColorUtils.hueFromColor(aHex);
+                const hb = ColorUtils.hueFromColor(bHex);
                 if (ha === hb) {
                     // fallback to alphabetical when hues equal or Infinity
                     return (a.Color || '').localeCompare(b.Color || '');
