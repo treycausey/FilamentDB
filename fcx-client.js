@@ -117,11 +117,10 @@
         }
       }
       worker.addEventListener('message', onMsg);
-      worker.postMessage({ type: 'match', id, hex, material: material || null });
+      worker.postMessage({ type: 'match', id, hex, material: material || null, top: 3 });
       setTimeout(() => { worker.removeEventListener('message', onMsg); resolve(null); }, 2000);
     });
   }
 
   global.FCX = { fetchVersion, getBestMatch, suggestColor };
 })(window);
-

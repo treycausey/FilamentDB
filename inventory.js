@@ -523,14 +523,18 @@ function setupColorPicker() {
             }
         } catch {}
 
-        if (suggested && suggested.color_name) {
-            const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
-            const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep generic.`);
-            if (ok) {
-                entry.Color = pretty;
+        if (Array.isArray(suggested) && suggested.length) {
+            // Show simple chooser if multiple suggestions returned (worker path)
+            const choice = await showColorSuggestionsDialog(suggested, hex);
+            if (choice) {
+                entry.Color = choice;
             } else {
                 entry.Color = hex.toUpperCase();
             }
+        } else if (suggested && suggested.color_name) {
+            const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
+            const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep generic.`);
+            entry.Color = ok ? pretty : hex.toUpperCase();
         } else {
             const rgb = ColorUtils.hexToRgb(hex);
             let newColor = hex.toUpperCase();
@@ -593,6 +597,34 @@ function normalizeToHex(colorStr) {
         return ColorUtils.rgbToHex(r, g, b).toUpperCase();
     }
     return '#000000';
+}
+
+// Minimal suggestions dialog (overlay)
+async function showColorSuggestionsDialog(suggestions, hex) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex='10000';
+        const panel = document.createElement('div');
+        panel.style.position='absolute'; panel.style.top='50%'; panel.style.left='50%'; panel.style.transform='translate(-50%, -50%)';
+        panel.style.background='#fff'; panel.style.borderRadius='12px'; panel.style.padding='16px'; panel.style.width='min(420px, 90vw)'; panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.2)';
+        panel.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Suggestions from filamentcolors.xyz</div>
+        <div style="font-size:12px;color:#666;margin-bottom:8px">Picked ${hex.toUpperCase()}</div>`;
+        const list = document.createElement('div');
+        list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px';
+        suggestions.forEach(s => {
+            const btn = document.createElement('button');
+            btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance}`;
+            btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
+            btn.addEventListener('click', () => { cleanup(); resolve(btn.textContent.split(' · ')[0]); });
+            list.appendChild(btn);
+        });
+        const cancel = document.createElement('button');
+        cancel.textContent = 'Keep generic';
+        cancel.style.marginTop='12px'; cancel.style.padding='8px 10px'; cancel.style.border='1px solid #ddd'; cancel.style.borderRadius='8px'; cancel.style.cursor='pointer';
+        cancel.addEventListener('click', ()=>{ cleanup(); resolve(null); });
+        panel.appendChild(list); panel.appendChild(cancel); overlay.appendChild(panel); document.body.appendChild(overlay);
+        function cleanup(){ try{ document.body.removeChild(overlay); } catch{} }
+    });
 }
 
 // ===============================

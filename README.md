@@ -54,6 +54,7 @@ FilamentDB is a web-based inventory management system specifically designed for 
 - **Grid and list view modes** (List is default)
 - Tag-based organization with click-to-filter
  - Click a color swatch to edit the color with a native color picker (stores closest known color name when possible)
+ - Optional color suggestions powered by filamentcolors.xyz API (with local cache). Offline fallback via local snapshot + worker.
 
 ### ☁️ **NEW: Cross-Device Cloud Sync**
 - **Sync inventory across multiple devices** using JSONBin.io
@@ -251,6 +252,10 @@ filamentdb/
 ├── generator.html           # QR code generator
 ├── inventory.html           # Inventory management
 ├── settings.html            # Settings (Cloud Sync, exports)
+├── fcx-client.js            # FilamentColors.xyz API client + cache
+├── workers/match-worker.js  # Offline matcher (snapshot, CIEDE2000)
+├── tools/fcx-build.js       # Node script to build local snapshot JSON
+├── fcx-snapshot/            # Snapshot output (all.json, pla.json, ...)
 ├── app.js                   # Scanner functionality
 ├── generator.js             # Generator functionality  
 ├── inventory.js             # Inventory functionality
@@ -290,6 +295,16 @@ filamentdb/
 - `npm run serve`: Alternative HTTP server
 - `node validate.js`: Run code quality validation
 - Open `tests.html`: Run comprehensive test suite
+
+### FilamentColors.xyz Integration
+- Default path: API with caching via `fcx-client.js` (lightweight and current).
+- Offline fallback: build a local snapshot and use the worker.
+
+Build snapshot locally:
+```
+node tools/fcx-build.js --endpoint=https://filamentcolors.xyz/api --out=fcx-snapshot
+```
+This creates `fcx-snapshot/all.json` and material shards (e.g., `pla.json`, `petg.json`). The worker will load the best shard by Material, compute CIEDE2000, and surface the nearest suggestions when the API is unavailable.
 
 ### Contributing
 1. Fork the repository
