@@ -5,6 +5,10 @@
   // Initialize cloud storage instance
   let cs = null;
   document.addEventListener('DOMContentLoaded', () => {
+    // Apply saved accent on load so the page reflects current theme
+    if (window.Theme && typeof Theme.applyAccentFromStorage === 'function') {
+      Theme.applyAccentFromStorage();
+    }
     if (typeof CloudStorage !== 'undefined') {
       window.cloudStorage = new CloudStorage();
       cs = window.cloudStorage;
@@ -59,6 +63,44 @@
     }
     if (rebuildBtn) rebuildBtn.addEventListener('click', rebuildSnapshots);
     if (clearSnapBtn) clearSnapBtn.addEventListener('click', clearSnapshots);
+
+    // Accent controls
+    const picker = document.getElementById('accentPicker');
+    const applyBtn = document.getElementById('applyAccentBtn');
+    const resetBtn = document.getElementById('resetAccentBtn');
+    if (picker && window.getComputedStyle) {
+      // Initialize picker from current CSS variable
+      const current = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#FF6B35';
+      picker.value = rgbToHexIfNeeded(current);
+    }
+    if (applyBtn && picker) {
+      applyBtn.addEventListener('click', () => {
+        if (window.Theme) Theme.setAccentColor(picker.value);
+      });
+    }
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (window.Theme) Theme.setAccentColor('#FF6B35');
+        if (picker) picker.value = '#FF6B35';
+      });
+    }
+    document.querySelectorAll('.preset-accent').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hex = btn.dataset.hex;
+        if (picker) picker.value = hex;
+        if (window.Theme) Theme.setAccentColor(hex);
+      });
+    });
+  }
+
+  function rgbToHexIfNeeded(v){
+    const s = (''+v).trim();
+    if (s.startsWith('#')) return s.toUpperCase();
+    const m = s.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (!m) return '#FF6B35';
+    const r = parseInt(m[1],10), g=parseInt(m[2],10), b=parseInt(m[3],10);
+    const to=(n)=>n.toString(16).padStart(2,'0');
+    return `#${to(r)}${to(g)}${to(b)}`.toUpperCase();
   }
 
   function refreshStatus() {
@@ -226,7 +268,9 @@
     textarea.style.zIndex = '10000';
     textarea.style.fontSize = '12px';
     textarea.style.fontFamily = 'monospace';
-    textarea.style.border = '2px solid #FF6B35';
+    // Use current accent color for border
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#FF6B35';
+    textarea.style.border = `2px solid ${accent}`;
     textarea.style.padding = '10px';
     textarea.style.borderRadius = '8px';
     document.body.appendChild(textarea);
@@ -239,7 +283,7 @@
     closeBtn.style.left = '50%';
     closeBtn.style.transform = 'translateX(-50%)';
     closeBtn.style.zIndex = '10001';
-    closeBtn.style.background = '#FF6B35';
+    closeBtn.style.background = accent;
     closeBtn.style.color = 'white';
     closeBtn.style.border = 'none';
     closeBtn.style.padding = '10px 20px';

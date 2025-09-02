@@ -40,6 +40,24 @@
 
         <section class="settings-section">
             <div class="settings-card">
+                <h3>Accent Color</h3>
+                <div class="muted">Change the app’s accent (buttons and highlights).</div>
+                <div class="settings-actions" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                    <input type="color" id="accentPicker" value="#FF6B35" title="Pick a color" style="width:44px;height:32px;border:none;background:transparent;cursor:pointer">
+                    <button class="settings-button" id="applyAccentBtn">Apply</button>
+                    <button class="settings-button secondary-button" id="resetAccentBtn">Reset</button>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                        <span class="muted">Presets:</span>
+                        <button class="settings-button secondary-button preset-accent" data-hex="#FF6B35" style="background:#FF6B35;color:#fff;border:none">Orange</button>
+                        <button class="settings-button secondary-button preset-accent" data-hex="#00A3FF" style="background:#00A3FF;color:#fff;border:none">Blue</button>
+                        <button class="settings-button secondary-button preset-accent" data-hex="#6C5CE7" style="background:#6C5CE7;color:#fff;border:none">Violet</button>
+                        <button class="settings-button secondary-button preset-accent" data-hex="#2ECC71" style="background:#2ECC71;color:#fff;border:none">Green</button>
+                        <button class="settings-button secondary-button preset-accent" data-hex="#E84393" style="background:#E84393;color:#fff;border:none">Pink</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card">
                 <h3>Color Suggestions (filamentcolors)</h3>
                 <div class="muted">Uses local snapshots for offline, precise color suggestions.</div>
                 <div class="settings-actions" style="margin-top:12px;">
@@ -80,7 +98,7 @@
             </div>
         </section>
     </div>
-
+    <script src="theme.js"></script>
     <script src="cloud-storage.js"></script>
     <script src="settings.js"></script>
 </body>
