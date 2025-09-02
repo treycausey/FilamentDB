@@ -177,18 +177,18 @@ function displayEntries(entries) {
                 </div>
                 <div class="entry-card-body">
                     <div class="material-color">
-                        <strong>${entry.Material}</strong>
+                        <strong class="editable" data-field="Material" title="Edit material">${entry.Material}</strong>
                         <span class="color-indicator ${entry.ColorHex ? 'fcx' : ''}" title="${entry.ColorHex ? 'HEX: ' + entry.ColorHex : ''}" style="background: ${getEntryHex(entry)}"></span>
-                        <span>${entry.Color}</span>
+                        <span class="editable" data-field="Color" title="Edit color text or HEX">${entry.Color}</span>
                         <button class="refine-color" data-id="${entry.id}" title="Refine color">Refine</button>
                     </div>
                     <div class="temp-info">
-                        <span class="temp">T1: ${entry.Temp1}°</span>
-                        <span class="temp">T2: ${entry.Temp2}°</span>
+                        <span class="temp editable" data-field="Temp1" title="Edit T1">T1: ${entry.Temp1}°</span>
+                        <span class="temp editable" data-field="Temp2" title="Edit T2">T2: ${entry.Temp2}°</span>
                     </div>
                     <div class="spool-info">
                         <span class="spool-count editable edit-spool" title="Edit spools">🧵 ${entry.spoolCount || 1} spool${(entry.spoolCount || 1) > 1 ? 's' : ''}</span>
-                        <span class="remaining-percentage remaining-${getRemainingCategory(entry.remainingPercentage || 100)}">${entry.remainingPercentage || 100}% left</span>
+                        <span class="remaining-percentage editable remaining-${getRemainingCategory(entry.remainingPercentage || 100)}" data-field="remainingPercentage" title="Edit remaining %">${entry.remainingPercentage || 100}% left</span>
                     </div>
                 </div>
                 <div class="entry-card-footer">
@@ -225,7 +225,7 @@ function displayEntries(entries) {
                                     <button class="refine-color" data-id="${entry.id}" title="Refine color">Refine</button>
                                 </div>
                             </td>
-                            <td class="hex-value">${(getEntryHex(entry) || '').toUpperCase()}</td>
+                            <td class="hex-value"><span class="copy-hex" data-hex="${(getEntryHex(entry) || '').toUpperCase()}">${(getEntryHex(entry) || '').toUpperCase()}</span></td>
                             <td class="editable" data-field="Temp1">${entry.Temp1}</td>
                             <td class="editable" data-field="Temp2">${entry.Temp2}</td>
                             <td><span class="edit-spool spool-count editable" title="Edit spools">${entry.spoolCount || 1}</span></td>
@@ -295,6 +295,32 @@ function displayEntries(entries) {
             const field = td.dataset.field;
             if (!id || !field) return;
             handleInlineEdit(id, field, td);
+        });
+    });
+
+    // Add edit listeners for grid items
+    document.querySelectorAll('.entry-card-grid .editable[data-field]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.closest('[data-id]')?.dataset.id;
+            const field = e.currentTarget.dataset.field;
+            if (!id || !field) return;
+            handleInlineEdit(id, field, e.currentTarget);
+        });
+    });
+
+    // Copy HEX on click
+    document.querySelectorAll('.copy-hex').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.title = 'Click to copy HEX';
+        el.addEventListener('click', async () => {
+            try {
+                const hex = el.dataset.hex || el.textContent.trim();
+                await navigator.clipboard.writeText(hex);
+                const prev = el.textContent;
+                el.textContent = 'Copied!';
+                setTimeout(() => { el.textContent = prev; }, 900);
+            } catch {}
         });
     });
     
