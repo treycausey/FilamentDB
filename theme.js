@@ -71,5 +71,13 @@
   }
 
   window.Theme = { setAccentColor, applyAccentFromStorage };
-})();
 
+  // Auto-apply saved accent across all pages
+  try {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyAccentFromStorage);
+    } else {
+      applyAccentFromStorage();
+    }
+  } catch {}
+})();
