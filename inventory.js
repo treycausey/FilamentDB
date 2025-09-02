@@ -150,7 +150,7 @@ function displayEntries(entries) {
                 <div class="entry-card-body">
                     <div class="material-color">
                         <strong>${entry.Material}</strong>
-                        <span class="color-indicator" style="background: ${getEntryHex(entry)}"></span>
+                        <span class="color-indicator ${entry.ColorHex ? 'fcx' : ''}" title="${entry.ColorHex ? 'HEX: ' + entry.ColorHex : ''}" style="background: ${getEntryHex(entry)}"></span>
                         <span>${entry.Color}</span>
                     </div>
                     <div class="temp-info">
@@ -190,7 +190,7 @@ function displayEntries(entries) {
                             <td>${entry.Material}</td>
                             <td>
                                 <div class="color-cell">
-                                    <span class="color-indicator" style="background: ${getEntryHex(entry)}"></span>
+                                    <span class="color-indicator ${entry.ColorHex ? 'fcx' : ''}" title="${entry.ColorHex ? 'HEX: ' + entry.ColorHex : ''}" style="background: ${getEntryHex(entry)}"></span>
                                     ${entry.Color}
                                 </div>
                             </td>
@@ -747,7 +747,7 @@ function exportEntries() {
         return;
     }
     
-    const headers = ['Manufacturer', 'Material', 'Color', 'Temp1', 'Temp2', 'Date'];
+    const headers = ['Manufacturer', 'Material', 'Color', 'ColorHex', 'Temp1', 'Temp2', 'Date'];
     const csvContent = [
         headers.join(','),
         ...filteredEntries.map(entry => 
@@ -755,6 +755,7 @@ function exportEntries() {
                 entry.Manufacturer,
                 entry.Material,
                 entry.Color,
+                entry.ColorHex || '',
                 entry.Temp1,
                 entry.Temp2,
                 new Date(entry.timestamp).toISOString()

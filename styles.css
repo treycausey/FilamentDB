@@ -1021,6 +1021,11 @@ body {
     cursor: pointer;
 }
 
+/* Visual hint when a color has an exact HEX from filamentcolors */
+.color-indicator.fcx {
+    box-shadow: 0 0 0 2px var(--secondary), var(--shadow-md);
+}
+
 .temp-info {
     display: flex;
     gap: var(--space-4);
