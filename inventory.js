@@ -150,7 +150,7 @@ function displayEntries(entries) {
                 <div class="entry-card-body">
                     <div class="material-color">
                         <strong>${entry.Material}</strong>
-                        <span class="color-indicator" style="background: ${getColorHex(entry.Color)}"></span>
+                        <span class="color-indicator" style="background: ${getEntryHex(entry)}"></span>
                         <span>${entry.Color}</span>
                     </div>
                     <div class="temp-info">
@@ -190,7 +190,7 @@ function displayEntries(entries) {
                             <td>${entry.Material}</td>
                             <td>
                                 <div class="color-cell">
-                                    <span class="color-indicator" style="background: ${getColorHex(entry.Color)}"></span>
+                                    <span class="color-indicator" style="background: ${getEntryHex(entry)}"></span>
                                     ${entry.Color}
                                 </div>
                             </td>
@@ -258,6 +258,11 @@ function displayEntries(entries) {
 function getColorHex(colorName) {
     // Use the enhanced color utility that supports 285+ colors
     return ColorUtils.getColorHex(colorName);
+}
+
+function getEntryHex(entry) {
+    if (entry && entry.ColorHex) return entry.ColorHex;
+    return getColorHex(entry?.Color || '#000000');
 }
 
 function getRemainingCategory(percentage) {
@@ -525,12 +530,19 @@ function setupColorPicker() {
 
         // Always allow choosing by manufacturer with a dropdown
         const chosen = await showManufacturerSuggestionsDialog(hex, entry.Material, entry.Manufacturer);
-        if (chosen) {
-            entry.Color = chosen;
+        if (chosen && chosen.label) {
+            entry.Color = chosen.label;
+            if (chosen.hex) entry.ColorHex = chosen.hex.toUpperCase();
         } else if (suggested && suggested.color_name) {
             const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
             const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep generic.`);
-            entry.Color = ok ? pretty : hex.toUpperCase();
+            if (ok) {
+                entry.Color = pretty;
+                if (suggested.hex_color) entry.ColorHex = suggested.hex_color.toUpperCase();
+            } else {
+                entry.Color = hex.toUpperCase();
+                entry.ColorHex = hex.toUpperCase();
+            }
         } else {
             const rgb = ColorUtils.hexToRgb(hex);
             let newColor = hex.toUpperCase();
@@ -541,6 +553,7 @@ function setupColorPicker() {
                 }
             }
             entry.Color = newColor;
+            entry.ColorHex = hex.toUpperCase();
         }
         saveToStorage(allEntries);
         loadSavedEntries();
@@ -552,7 +565,7 @@ function setupColorPicker() {
 function openColorPickerForEntry(id) {
     const entry = allEntries.find(en => en.id === id);
     if (!entry || !colorPickerInput) return;
-    const current = getColorHex(entry.Color);
+    const current = entry.ColorHex || getColorHex(entry.Color);
     const hex = normalizeToHex(current);
     if (hex) {
         colorPickerInput.value = hex;
@@ -609,9 +622,12 @@ async function showColorSuggestionsDialog(suggestions, hex) {
         list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px';
         suggestions.forEach(s => {
             const btn = document.createElement('button');
-            btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance}`;
+            const label = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''}`;
+            btn.textContent = `${label} · ΔE ${s.distance}`;
+            btn.dataset.label = label;
+            btn.dataset.hex = s.hex_color || '';
             btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
-            btn.addEventListener('click', () => { cleanup(); resolve(btn.textContent.split(' · ')[0]); });
+            btn.addEventListener('click', () => { cleanup(); resolve({ label: btn.dataset.label, hex: btn.dataset.hex }); });
             list.appendChild(btn);
         });
         const cancel = document.createElement('button');
@@ -652,9 +668,12 @@ async function showManufacturerSuggestionsDialog(hex, material, defaultMfr) {
             if (!sugg || !sugg.length) { const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return; }
             sugg.forEach(s => {
                 const btn = document.createElement('button');
-                btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance ?? ''}`;
+                const label = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''}`;
+                btn.textContent = `${label} · ΔE ${s.distance ?? ''}`;
+                btn.dataset.label = label;
+                btn.dataset.hex = s.hex_color || '';
                 btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
-                btn.addEventListener('click', ()=>{ cleanup(); resolve(btn.textContent.split(' · ')[0]); });
+                btn.addEventListener('click', ()=>{ cleanup(); resolve({ label: btn.dataset.label, hex: btn.dataset.hex }); });
                 list.appendChild(btn);
             });
         }
