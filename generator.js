@@ -18,6 +18,7 @@ const temp1Field = document.getElementById('temp1');
 const temp2Field = document.getElementById('temp2');
 const remainingField = document.getElementById('remaining');
 const colorDetectorBtn = document.getElementById('colorDetectorBtn');
+const colorSuggestBtn = document.getElementById('colorSuggestBtn');
 
 // State
 let currentQRData = null;
@@ -35,6 +36,7 @@ downloadSvgBtn.addEventListener('click', downloadSVG);
 printBtn.addEventListener('click', printQR);
 saveToInventoryBtn.addEventListener('click', saveToInventory);
 colorDetectorBtn.addEventListener('click', startColorDetection);
+if (colorSuggestBtn) colorSuggestBtn.addEventListener('click', suggestColorFromInput);
 
 // Populate form from URL parameters (if coming from inventory)
 document.addEventListener('DOMContentLoaded', () => {
@@ -73,6 +75,78 @@ function handleMaterialChange() {
         customMaterialField.required = false;
         customMaterialField.value = '';
     }
+}
+
+// Suggest color name via filamentcolors.xyz
+async function suggestColorFromInput() {
+    try {
+        if (!window.FCX || typeof FCX.suggestColor !== 'function') return;
+        const hex = normalizeToHex(ColorUtils.getColorHex(colorField.value || ''));
+        if (!hex) return;
+        const material = materialField.value || undefined;
+        const suggested = await FCX.suggestColor(hex, material);
+        if (Array.isArray(suggested) && suggested.length) {
+            const choice = await showColorSuggestionsDialog(suggested, hex);
+            if (choice) colorField.value = choice;
+        } else if (suggested && suggested.color_name) {
+            const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
+            const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep current.`);
+            if (ok) colorField.value = pretty;
+        }
+    } catch (e) {
+        // silent failure
+    }
+}
+
+function normalizeToHex(colorStr) {
+    if (!colorStr) return '#000000';
+    const s = ('' + colorStr).trim();
+    if (/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(s)) {
+        if (s.length === 4) {
+            const r = s[1], g = s[2], b = s[3];
+            return ('#' + r + r + g + g + b + b).toUpperCase();
+        }
+        return s.toUpperCase();
+    }
+    const m = s.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (m) {
+        const r = parseInt(m[1], 10), g = parseInt(m[2], 10), b = parseInt(m[3], 10);
+        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
+    }
+    const computed = ColorUtils.getColorHex(s);
+    if (/^#/.test(computed)) return computed.toUpperCase();
+    const m2 = computed.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+    if (m2) {
+        const r = parseInt(m2[1], 10), g = parseInt(m2[2], 10), b = parseInt(m2[3], 10);
+        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
+    }
+    return '#000000';
+}
+
+async function showColorSuggestionsDialog(suggestions, hex) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex='10000';
+        const panel = document.createElement('div');
+        panel.style.position='absolute'; panel.style.top='50%'; panel.style.left='50%'; panel.style.transform='translate(-50%, -50%)';
+        panel.style.background='#fff'; panel.style.borderRadius='12px'; panel.style.padding='16px'; panel.style.width='min(420px, 90vw)'; panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.2)';
+        panel.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Suggestions from filamentcolors.xyz</div>
+        <div style=\"font-size:12px;color:#666;margin-bottom:8px\">Current ${hex.toUpperCase()}</div>`;
+        const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px';
+        suggestions.forEach(s => {
+            const btn = document.createElement('button');
+            btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance}`;
+            btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
+            btn.addEventListener('click', () => { cleanup(); resolve(btn.textContent.split(' · ')[0]); });
+            list.appendChild(btn);
+        });
+        const cancel = document.createElement('button');
+        cancel.textContent = 'Cancel';
+        cancel.style.marginTop='12px'; cancel.style.padding='8px 10px'; cancel.style.border='1px solid #ddd'; cancel.style.borderRadius='8px'; cancel.style.cursor='pointer';
+        cancel.addEventListener('click', ()=>{ cleanup(); resolve(null); });
+        panel.appendChild(list); panel.appendChild(cancel); overlay.appendChild(panel); document.body.appendChild(overlay);
+        function cleanup(){ try{ document.body.removeChild(overlay); } catch{} }
+    });
 }
 
 function handleFormSubmit(e) {
@@ -672,4 +746,3 @@ window.addEventListener('beforeunload', function(e) {
         return message;
     }
 });
-
