@@ -242,7 +242,7 @@ function displayEntries(entries) {
             const container = e.target.closest('[data-id]');
             const row = e.target.closest('tr');
             const id = container?.dataset.id || row?.dataset.id;
-            if (id) openColorPickerForEntry(id);
+            if (id) openColorSelectionFlow(id);
         });
     });
     
@@ -579,6 +579,85 @@ function openColorPickerForEntry(id) {
         // Fallback prompt for browsers without native color input
         fallbackColorPrompt(id, hex);
     }
+}
+
+// Redesigned color selection flow: tries filamentcolors suggestions and text search
+async function openColorSelectionFlow(id) {
+    const entry = allEntries.find(en => en.id === id);
+    if (!entry) return;
+    const material = entry.Material || undefined;
+    const defaultMfr = entry.Manufacturer || '';
+    const baseHex = entry.ColorHex || getColorHex(entry.Color) || '#000000';
+
+    // Build overlay UI
+    const overlay = document.createElement('div');
+    overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex='10000';
+    const panel = document.createElement('div');
+    panel.style.position='absolute'; panel.style.top='50%'; panel.style.left='50%'; panel.style.transform='translate(-50%, -50%)';
+    panel.style.background='#fff'; panel.style.borderRadius='12px'; panel.style.padding='16px'; panel.style.width='min(640px, 95vw)'; panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.2)';
+    const title = document.createElement('div'); title.style.fontWeight='700'; title.style.marginBottom='6px'; title.textContent='Select Color';
+    const sub = document.createElement('div'); sub.style.fontSize='12px'; sub.style.color='#666'; sub.style.marginBottom='8px'; sub.textContent=`Current ${entry.Color} · ${baseHex.toUpperCase()} · Material ${material||'any'}`;
+    const controls = document.createElement('div'); controls.style.display='grid'; controls.style.gridTemplateColumns='1fr 1fr'; controls.style.gap='8px'; controls.style.marginBottom='8px';
+    const mfrSel = document.createElement('select'); mfrSel.style.padding='8px'; mfrSel.style.border='1px solid #eee'; mfrSel.style.borderRadius='8px';
+    const search = document.createElement('input'); search.type='text'; search.placeholder='Search color name...'; search.style.padding='8px'; search.style.border='1px solid #eee'; search.style.borderRadius='8px';
+    controls.appendChild(mfrSel); controls.appendChild(search);
+    const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='6px'; list.style.maxHeight='50vh'; list.style.overflow='auto'; list.style.marginTop='4px';
+    const actions = document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='10px';
+    const pickBtn = document.createElement('button'); pickBtn.textContent='Open Color Picker'; pickBtn.style.padding='8px 10px'; pickBtn.style.border='1px solid #ddd'; pickBtn.style.borderRadius='8px'; pickBtn.style.cursor='pointer';
+    const cancelBtn = document.createElement('button'); cancelBtn.textContent='Cancel'; cancelBtn.style.padding='8px 10px'; cancelBtn.style.border='1px solid #ddd'; cancelBtn.style.borderRadius='8px'; cancelBtn.style.cursor='pointer';
+    actions.appendChild(pickBtn); actions.appendChild(cancelBtn);
+    panel.appendChild(title); panel.appendChild(sub); panel.appendChild(controls); panel.appendChild(list); panel.appendChild(actions); overlay.appendChild(panel); document.body.appendChild(overlay);
+
+    function cleanup(){ try{ document.body.removeChild(overlay); } catch{} }
+
+    // Populate manufacturer list
+    (async () => {
+        if (window.FCX) {
+            const mfrs = await FCX.getManufacturers();
+            const optAll = document.createElement('option'); optAll.value=''; optAll.textContent='All manufacturers'; mfrSel.appendChild(optAll);
+            mfrs.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; mfrSel.appendChild(o); });
+            if (defaultMfr) mfrSel.value = defaultMfr;
+        } else {
+            const optAll = document.createElement('option'); optAll.value=''; optAll.textContent='All manufacturers'; mfrSel.appendChild(optAll);
+        }
+        await loadSuggestions();
+    })();
+
+    let searchTimer = null;
+    search.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(loadSuggestions, 250);
+    });
+    mfrSel.addEventListener('change', loadSuggestions);
+
+    async function loadSuggestions(){
+        list.innerHTML='Loading…';
+        let items = [];
+        try {
+            if (search.value && window.FCX) {
+                items = await FCX.searchByText(search.value, mfrSel.value || null, material, 10);
+            } else if (window.FCX) {
+                // Suggested near current color
+                items = await FCX.listSuggestions(baseHex, material, mfrSel.value || null, 5);
+            }
+        } catch {}
+        list.innerHTML='';
+        if (!items || !items.length) { const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return; }
+        items.forEach(s => {
+            const btn = document.createElement('button');
+            const label = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''}`;
+            btn.textContent = `${label}${s.distance!=null? ' · ΔE '+s.distance : ''}`;
+            btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
+            btn.addEventListener('click', ()=>{
+                entry.Color = label; entry.ColorHex = (s.hex_color||'').toUpperCase();
+                saveToStorage(allEntries); loadSavedEntries(); cleanup();
+            });
+            list.appendChild(btn);
+        });
+    }
+
+    cancelBtn.addEventListener('click', ()=>{ cleanup(); });
+    pickBtn.addEventListener('click', ()=>{ cleanup(); openColorPickerForEntry(id); });
 }
 
 function normalizeToHex(colorStr) {

@@ -229,5 +229,32 @@
     });
   }
 
-  global.FCX = { fetchVersion, getBestMatch, suggestColor, listSuggestions, getManufacturers };
+  // Text search by color name (optionally filter by manufacturer and material)
+  async function searchByText(query, manufacturer, material, limit = 10) {
+    if (!query || !query.trim()) return [];
+    let url = `${ENDPOINT}/swatch/?color_name__icontains=${encodeURIComponent(query.trim())}`;
+    if (manufacturer) url += `&manufacturer__name__icontains=${encodeURIComponent(manufacturer)}`;
+    if (material) url += `&filament_type__parent_type__name=${encodeURIComponent(material)}`;
+    const out = [];
+    try {
+      while (url && out.length < limit) {
+        const page = await fetchJSON(url);
+        const results = page.results || page;
+        for (const s of results) {
+          out.push({
+            color_name: s.color_name,
+            manufacturer: s.manufacturer?.name,
+            hex_color: s.hex_color,
+            filament_type: s.filament_type?.parent_type?.name || s.filament_type?.name,
+          });
+          if (out.length >= limit) break;
+        }
+        url = page.next || null;
+        if (url && !url.startsWith('http')) url = ENDPOINT.replace(/\/$/, '') + url;
+      }
+    } catch {}
+    return out;
+  }
+
+  global.FCX = { fetchVersion, getBestMatch, suggestColor, listSuggestions, getManufacturers, searchByText };
 })(window);
