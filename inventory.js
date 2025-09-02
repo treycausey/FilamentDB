@@ -508,22 +508,40 @@ function setupColorPicker() {
     colorPickerInput.setAttribute('aria-hidden', 'true');
     document.body.appendChild(colorPickerInput);
 
-    colorPickerInput.addEventListener('change', (e) => {
+    colorPickerInput.addEventListener('change', async (e) => {
         const id = colorPickerInput.dataset.entryId;
         if (!id) return;
         const hex = e.target.value; // Always #RRGGBB
         const entry = allEntries.find(en => en.id === id);
         if (!entry) return;
 
-        const rgb = ColorUtils.hexToRgb(hex);
-        let newColor = hex.toUpperCase();
-        if (rgb) {
-            const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
-            if (closest && closest !== 'Unknown') {
-                newColor = closest;
+        // Try filamentcolors.xyz suggestion first (with material hint), then fallback
+        let suggested = null;
+        try {
+            if (window.FCX && typeof FCX.suggestColor === 'function') {
+                suggested = await FCX.suggestColor(hex, entry.Material);
             }
+        } catch {}
+
+        if (suggested && suggested.color_name) {
+            const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
+            const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep generic.`);
+            if (ok) {
+                entry.Color = pretty;
+            } else {
+                entry.Color = hex.toUpperCase();
+            }
+        } else {
+            const rgb = ColorUtils.hexToRgb(hex);
+            let newColor = hex.toUpperCase();
+            if (rgb) {
+                const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
+                if (closest && closest !== 'Unknown') {
+                    newColor = closest;
+                }
+            }
+            entry.Color = newColor;
         }
-        entry.Color = newColor;
         saveToStorage(allEntries);
         loadSavedEntries();
         // cleanup id so subsequent opens don't accidentally reuse
