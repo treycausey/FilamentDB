@@ -232,25 +232,34 @@ class CloudStorage {
         }
     }
 
-    // Merge two inventory arrays, removing duplicates
+    // Merge two inventory arrays, removing duplicates. Prefer stable `id` when present.
     mergeInventoryData(localData, cloudData) {
-        const merged = [...localData];
-        const localKeys = new Set(localData.map(item => this.getItemKey(item)));
+        // Normalize IDs to strings where present
+        const norm = (e) => ({
+            ...e,
+            id: e.id != null ? String(e.id) : e.id
+        });
+        const local = localData.map(norm);
+        const cloud = cloudData.map(norm);
 
-        // Add cloud items that don't exist locally
-        for (const cloudItem of cloudData) {
-            const key = this.getItemKey(cloudItem);
-            if (!localKeys.has(key)) {
-                merged.push(cloudItem);
-            }
+        // Index local by preferred key
+        const mergedMap = new Map();
+        const keyFor = (item) => item.id ? `id:${item.id}` : this.getItemKey(item);
+
+        for (const item of local) {
+            mergedMap.set(keyFor(item), item);
+        }
+        for (const item of cloud) {
+            const k = keyFor(item);
+            if (!mergedMap.has(k)) mergedMap.set(k, item);
         }
 
-        return merged;
+        return Array.from(mergedMap.values());
     }
 
-    // Generate unique key for inventory item
+    // Generate fallback unique key for inventory item when `id` is missing
     getItemKey(item) {
-        return `${item.Manufacturer}-${item.Material}-${item.Color}`.toLowerCase();
+        return `${(item.Manufacturer||'').toLowerCase()}|${(item.Material||'').toLowerCase()}|${(item.Color||'').toLowerCase()}`;
     }
 
     // Generate simple device ID

@@ -31,6 +31,8 @@ let tableSortDirection = 'asc';
 const STORAGE_KEY = 'qrCodeEntries';
 let colorPickerInput = null;
 let colorInputSupported = null;
+let lastDeletedEntry = null;
+let undoTimeout = null;
 
 // Cloud storage instance (use global window.cloudStorage for consistency)
 
@@ -72,9 +74,11 @@ function getStoredEntries() {
     const stored = localStorage.getItem(STORAGE_KEY);
     const entries = stored ? JSON.parse(stored) : [];
     
-    // Migrate existing entries to include spoolCount and remainingPercentage fields
+    // Migrate existing entries to include missing fields and ensure unique, stable IDs
     let needsMigration = false;
+    const seenIds = new Set();
     entries.forEach(entry => {
+        // Ensure spoolCount and remainingPercentage exist
         if (!entry.spoolCount) {
             entry.spoolCount = 1;
             needsMigration = true;
@@ -83,14 +87,33 @@ function getStoredEntries() {
             entry.remainingPercentage = 100;
             needsMigration = true;
         }
+        // Ensure every entry has an ID (string)
+        if (!entry.id) {
+            entry.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+            needsMigration = true;
+        } else if (typeof entry.id !== 'string') {
+            entry.id = String(entry.id);
+            needsMigration = true;
+        }
     });
+
+    // De-duplicate by ID while preserving the most recent item
+    // Build a map keeping the last occurrence for each id
+    const byId = new Map();
+    for (const e of entries) {
+        byId.set(e.id, e);
+    }
+    if (byId.size !== entries.length) {
+        needsMigration = true;
+    }
+    const deduped = Array.from(byId.values());
     
     // Save migrated data back to storage
     if (needsMigration) {
-        saveToStorage(entries);
+        saveToStorage(deduped);
     }
     
-    return entries;
+    return needsMigration ? deduped : entries;
 }
 
 function saveToStorage(entries) {
@@ -125,6 +148,9 @@ function updateStats() {
 }
 
 function displayEntries(entries) {
+    // Guard: de-duplicate by id to prevent accidental visual duplication
+    const deduped = Array.from(new Map((entries || []).map(e => [e.id || `${e.Manufacturer}|${e.Material}|${e.Color}`, e])).values());
+    entries = deduped;
     if (entries.length === 0) {
         if (allEntries.length === 0) {
             entriesList.classList.add('hidden');
@@ -503,11 +529,123 @@ function syncFilterSelectUI() {
 }
 
 function deleteEntry(id) {
-    if (!confirm('Are you sure you want to delete this entry?')) return;
+    const entryToDelete = allEntries.find(entry => entry.id === id);
+    if (!entryToDelete) return;
     
+    // Store the deleted entry for undo functionality
+    lastDeletedEntry = { ...entryToDelete };
+    
+    // Remove entry from arrays
     allEntries = allEntries.filter(entry => entry.id !== id);
     saveToStorage(allEntries);
     loadSavedEntries();
+    
+    // Show undo notification
+    showUndoNotification(entryToDelete);
+}
+
+function showUndoNotification(deletedEntry) {
+    // Clear any existing undo timeout
+    if (undoTimeout) {
+        clearTimeout(undoTimeout);
+    }
+    
+    // Remove any existing undo notification
+    const existingUndo = document.getElementById('undoNotification');
+    if (existingUndo) {
+        existingUndo.remove();
+    }
+    
+    // Create undo notification
+    const undoDiv = document.createElement('div');
+    undoDiv.id = 'undoNotification';
+    undoDiv.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+    `;
+    
+    const message = document.createElement('span');
+    message.textContent = `Deleted "${deletedEntry.Color}" spool`;
+    
+    const undoButton = document.createElement('button');
+    undoButton.textContent = 'UNDO';
+    undoButton.style.cssText = `
+        background: #FF6B35;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+    `;
+    
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.cssText = `
+        background: transparent;
+        color: white;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    undoDiv.appendChild(message);
+    undoDiv.appendChild(undoButton);
+    undoDiv.appendChild(closeButton);
+    document.body.appendChild(undoDiv);
+    
+    // Auto-hide after 10 seconds
+    undoTimeout = setTimeout(() => {
+        hideUndoNotification();
+    }, 10000);
+    
+    // Undo button click handler
+    undoButton.addEventListener('click', () => {
+        if (lastDeletedEntry) {
+            // Restore the entry
+            allEntries.push(lastDeletedEntry);
+            saveToStorage(allEntries);
+            loadSavedEntries();
+            lastDeletedEntry = null;
+            hideUndoNotification();
+        }
+    });
+    
+    // Close button click handler
+    closeButton.addEventListener('click', () => {
+        hideUndoNotification();
+    });
+}
+
+function hideUndoNotification() {
+    const undoDiv = document.getElementById('undoNotification');
+    if (undoDiv) {
+        undoDiv.remove();
+    }
+    if (undoTimeout) {
+        clearTimeout(undoTimeout);
+        undoTimeout = null;
+    }
+    lastDeletedEntry = null;
 }
 
 // ===============================
@@ -534,7 +672,7 @@ function setupColorPicker() {
         const id = colorPickerInput.dataset.entryId;
         if (!id) return;
         const hex = e.target.value; // Always #RRGGBB
-        const entry = allEntries.find(en => en.id === id);
+        let entry = allEntries.find(en => en.id === id);
         if (!entry) return;
 
         // Try filamentcolors.xyz suggestion first (with material hint), then fallback
@@ -547,33 +685,57 @@ function setupColorPicker() {
 
         // Always allow choosing by manufacturer with a dropdown
         const chosen = await showManufacturerSuggestionsDialog(hex, entry.Material, entry.Manufacturer);
+        
+        // Find entry by index for more robust updating
+        const entryIndex = allEntries.findIndex(en => en.id === id);
+        if (entryIndex === -1) return;
+        
+        let newColor, newColorHex;
+        
         if (chosen && chosen.label) {
-            entry.Color = chosen.label;
-            if (chosen.hex) entry.ColorHex = chosen.hex.toUpperCase();
+            newColor = chosen.label;
+            newColorHex = chosen.hex ? chosen.hex.toUpperCase() : allEntries[entryIndex].ColorHex;
         } else if (suggested && suggested.color_name) {
             const pretty = `${suggested.color_name}` + (suggested.manufacturer ? ` (${suggested.manufacturer})` : '');
             const ok = confirm(`Use suggested color name from filamentcolors.xyz?\n\n${pretty}\n\nOK to apply, Cancel to keep generic.`);
             if (ok) {
-                entry.Color = pretty;
-                if (suggested.hex_color) entry.ColorHex = suggested.hex_color.toUpperCase();
+                newColor = pretty;
+                newColorHex = suggested.hex_color ? suggested.hex_color.toUpperCase() : hex.toUpperCase();
             } else {
-                entry.Color = hex.toUpperCase();
-                entry.ColorHex = hex.toUpperCase();
+                newColor = hex.toUpperCase();
+                newColorHex = hex.toUpperCase();
             }
         } else {
             const rgb = ColorUtils.hexToRgb(hex);
-            let newColor = hex.toUpperCase();
+            newColor = hex.toUpperCase();
             if (rgb) {
                 const closest = ColorUtils.findClosestColorName(rgb.r, rgb.g, rgb.b);
                 if (closest && closest !== 'Unknown') {
                     newColor = closest;
                 }
             }
-            entry.Color = newColor;
-            entry.ColorHex = hex.toUpperCase();
+            newColorHex = hex.toUpperCase();
         }
+        
+        // Update entry in place with spread operator to ensure immutability
+        allEntries[entryIndex] = {
+            ...allEntries[entryIndex],
+            Color: newColor,
+            ColorHex: newColorHex
+        };
+        
         saveToStorage(allEntries);
-        loadSavedEntries();
+        // Update both arrays to avoid stale references
+        filteredEntries = [...allEntries];
+        
+        // Re-apply current filters and sorting instead of full reload
+        if (searchInput.value) {
+            handleSearch();
+        } else {
+            handleSort();
+        }
+        displayEntries(filteredEntries);
+        updateStats();
         // cleanup id so subsequent opens don't accidentally reuse
         delete colorPickerInput.dataset.entryId;
     });
@@ -706,8 +868,30 @@ async function openColorSelectionFlow(id) {
             btn.textContent = `${label}${s.distance!=null? ' · ΔE '+s.distance : ''}`;
             btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
             btn.addEventListener('click', ()=>{
-                entry.Color = label; entry.ColorHex = (s.hex_color||'').toUpperCase();
-                saveToStorage(allEntries); loadSavedEntries(); cleanup();
+                // Find and update the entry by ID using a more robust approach
+                const entryIndex = allEntries.findIndex(e => e.id === id);
+                if (entryIndex !== -1) {
+                    // Update the entry in place
+                    allEntries[entryIndex] = {
+                        ...allEntries[entryIndex],
+                        Color: label,
+                        ColorHex: (s.hex_color||'').toUpperCase()
+                    };
+                    
+                    saveToStorage(allEntries);
+                    // Update both arrays to avoid stale references
+                    filteredEntries = [...allEntries];
+                    
+                    // Re-apply current filters and sorting instead of full reload
+                    if (searchInput.value) {
+                        handleSearch();
+                    } else {
+                        handleSort();
+                    }
+                    displayEntries(filteredEntries);
+                    updateStats();
+                }
+                cleanup();
             });
             list.appendChild(btn);
         });

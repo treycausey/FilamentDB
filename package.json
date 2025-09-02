@@ -19,7 +19,7 @@
   },
   "keywords": [
     "filament",
-    "3d-printing", 
+    "3d-printing",
     "inventory",
     "qr-code",
     "scanner",
@@ -34,10 +34,10 @@
     "node": ">=16.0.0"
   },
   "devDependencies": {
+    "http-server": "^14.1.1",
     "live-server": "^1.2.2",
-    "http-server": "^14.1.1"
+    "playwright": "^1.55.0"
   },
-  "dependencies": {},
   "files": [
     "*.html",
     "*.js",

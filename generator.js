@@ -170,9 +170,21 @@ async function showManufacturerSuggestionsDialogForGen(hex, material, defaultMfr
                 await FCX.getSnapshotStatus();
                 await new Promise(r=>setTimeout(r,100));
             }
-            const sugg = await FCX.listSuggestions(hex, material, select.value || null, 5);
+            let sugg = await FCX.listSuggestions(hex, material, select.value || null, 5);
             list.innerHTML='';
-            if (!sugg || !sugg.length) { const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return; }
+            if (!sugg || !sugg.length) {
+                if ((select.value||'')) {
+                    const all = await FCX.listSuggestions(hex, material, null, 5);
+                    if (all && all.length) {
+                        const hint=document.createElement('div'); hint.style.color='#666'; hint.style.marginBottom='6px'; hint.textContent='No matches for this manufacturer. Show results from all manufacturers?';
+                        const btn=document.createElement('button'); btn.textContent='Show All'; btn.style.marginLeft='8px'; btn.style.padding='4px 8px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer';
+                        btn.addEventListener('click', ()=>{ select.value=''; reload(); });
+                        const wrap=document.createElement('div'); wrap.appendChild(hint); wrap.appendChild(btn); list.appendChild(wrap); return;
+                    }
+                }
+                try { const st = await FCX.getSnapshotStatus(); if (!st.loaded || st.loaded.length===0) { const msg=document.createElement('div'); msg.style.color='#666'; msg.innerHTML='No local color snapshots found. Build them in Settings → Color Suggestions.'; const a=document.createElement('a'); a.textContent='Open Settings'; a.href='settings.html'; a.className='refine-color'; const wrap=document.createElement('div'); wrap.appendChild(msg); wrap.appendChild(a); list.appendChild(wrap); return; } } catch {}
+                const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return;
+            }
             sugg.forEach(s => {
                 const btn = document.createElement('button');
                 btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance ?? ''}`;
