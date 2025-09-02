@@ -76,7 +76,7 @@
     const avgHp= Math.abs(h1p-h2p) > Math.PI ? (h1p+h2p+2*Math.PI)/2 : (h1p+h2p)/2;
     const T = 1 - 0.17*Math.cos(avgHp - deg2rad(30)) + 0.24*Math.cos(2*avgHp) + 0.32*Math.cos(3*avgHp + deg2rad(6)) - 0.20*Math.cos(4*avgHp - deg2rad(63));
     let dhp = h2p - h1p; if (Math.abs(dhp) > Math.PI) dhp -= Math.sign(dhp)*2*Math.PI;
-    const dLp=L2-L1, dCp=C2p-C1p, dHp=2*Math.sqrt(C1p+C2p)*Math.sin(dhp/2);
+    const dLp=L2-L1, dCp=C2p-C1p, dHp=2*Math.sqrt(C1p*C2p)*Math.sin(dhp/2);
     const SL=1+((0.015*Math.pow(avgLp-50,2))/Math.sqrt(20+Math.pow(avgLp-50,2))); const SC=1+0.045*avgCp; const SH=1+0.015*avgCp*T;
     const dTheta=deg2rad(30)*Math.exp(-Math.pow((rad2deg(avgHp)-275)/25,2)); const RC=2*Math.sqrt(Math.pow(avgCp,7)/(Math.pow(avgCp,7)+Math.pow(25,7)));
     const RT=-RC*Math.sin(2*dTheta); const KL=1, KC=1, KH=1;
@@ -123,10 +123,10 @@
     if (cached) return cached;
 
     try {
+      const w = await startWorker();
+      if (!w) return null;
       const arr = await new Promise((resolve) => {
         const id = Math.random().toString(36).slice(2);
-        const w = startWorker();
-        if (!w) return resolve([]);
         function onMsg(ev){ if (ev.data && ev.data.id === id) { worker.removeEventListener('message', onMsg); resolve(ev.data.result || []); } }
         worker.addEventListener('message', onMsg);
         worker.postMessage({ type: 'match', id, hex, material: material || null, manufacturer: manufacturer || null, top: 1 });
@@ -142,8 +142,33 @@
 
   // Optional: worker fallback (for future offline snapshots)
   let worker = null;
-  function injectSnapshotsIntoWorker() {
+  
+  async function ensureSnapshots() {
     try {
+      const types = JSON.parse(localStorage.getItem('fcx_snapshot_types') || '[]');
+      if (!types || types.length === 0) {
+        // Try to fetch default snapshots
+        try {
+          const response = await fetch('/fcx-snapshot/all.json');
+          if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('fcx_snapshot_types', JSON.stringify(['ALL']));
+            localStorage.setItem('fcx_snapshot_ALL', JSON.stringify(data));
+            return true;
+          }
+        } catch {}
+      }
+      return types && types.length > 0;
+    } catch {
+      return false;
+    }
+  }
+  
+  async function injectSnapshotsIntoWorker() {
+    try {
+      // Ensure snapshots exist first
+      await ensureSnapshots();
+      
       const types = JSON.parse(localStorage.getItem('fcx_snapshot_types') || '[]');
       types.forEach(t => {
         const data = JSON.parse(localStorage.getItem('fcx_snapshot_' + t) || '[]');
@@ -155,18 +180,19 @@
     } catch {}
   }
 
-  function startWorker() {
-    if (worker || !global.Worker) return null;
+  async function startWorker() {
+    if (!global.Worker) return null;
+    if (worker) return worker;
     try {
       worker = new Worker('workers/match-worker.js');
       // Bootstrap worker with any snapshots stored in localStorage
-      injectSnapshotsIntoWorker();
+      await injectSnapshotsIntoWorker();
       return worker;
     } catch { return null; }
   }
 
   async function getSnapshotStatus() {
-    const w = startWorker(); if (!w) return { loaded: [] };
+    const w = await startWorker(); if (!w) return { loaded: [] };
     return new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2);
       async function onMsg(ev){
@@ -175,7 +201,7 @@
           const res = ev.data.result || { loaded: [] };
           if (!res.loaded || !res.loaded.length) {
             // attempt a second try by injecting snapshots now
-            injectSnapshotsIntoWorker();
+            await injectSnapshotsIntoWorker();
             // ask again quickly
             const id2 = Math.random().toString(36).slice(2);
             function onMsg2(ev2){ if (ev2.data && ev2.data.id === id2) { worker.removeEventListener('message', onMsg2); resolve(ev2.data.result || {loaded: []}); } }

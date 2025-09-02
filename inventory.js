@@ -654,29 +654,19 @@ async function openColorSelectionFlow(id) {
                 }
             }
             if (search.value && window.FCX) {
-                items = await FCX.searchByText(search.value, mfrSel.value || null, material, 10);
+                items = await FCX.searchByText(search.value, mfrSel.value || null, null, 10);
             } else if (window.FCX) {
                 // Suggested near current color
-                items = await FCX.listSuggestions(baseHex, material, mfrSel.value || null, 5);
+                items = await FCX.listSuggestions(baseHex, null, mfrSel.value || null, 5);
             }
         } catch {}
         list.innerHTML='';
         if (!items || !items.length) {
-            try {
-                const st = await FCX.getSnapshotStatus();
-                if (!st.loaded || st.loaded.length === 0) {
-                    const note = document.createElement('div');
-                    note.style.color='#666'; note.style.marginBottom='8px';
-                    note.innerHTML = 'No local color snapshots found. Build them in Settings → Color Suggestions.';
-                    const go = document.createElement('a'); go.textContent='Open Settings'; go.href='settings.html'; go.className='refine-color';
-                    const wrap = document.createElement('div'); wrap.appendChild(note); wrap.appendChild(go); list.appendChild(wrap); return;
-                }
-            } catch {}
             // Try fallback to All manufacturers if a specific mfr is selected
             if ((mfrSel.value || '') && window.FCX) {
                 try {
-                    const allItems = search.value ? await FCX.searchByText(search.value, null, material, 10)
-                                                 : await FCX.listSuggestions(baseHex, material, null, 5);
+                    const allItems = search.value ? await FCX.searchByText(search.value, null, null, 10)
+                                                 : await FCX.listSuggestions(baseHex, null, null, 5);
                     if (allItems && allItems.length) {
                         const hint = document.createElement('div');
                         hint.style.color = '#666';
@@ -691,6 +681,17 @@ async function openColorSelectionFlow(id) {
                     }
                 } catch {}
             }
+            // If still nothing, check snapshot status and guide to Settings if truly empty
+            try {
+                const st = await FCX.getSnapshotStatus();
+                if (!st.loaded || st.loaded.length === 0) {
+                    const note = document.createElement('div');
+                    note.style.color='#666'; note.style.marginBottom='8px';
+                    note.innerHTML = 'No local color snapshots found. Build them in Settings → Color Suggestions.';
+                    const go = document.createElement('a'); go.textContent='Open Settings'; go.href='settings.html'; go.className='refine-color';
+                    const wrap = document.createElement('div'); wrap.appendChild(note); wrap.appendChild(go); list.appendChild(wrap); return;
+                }
+            } catch {}
             const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return;
         }
         items.forEach(s => {
