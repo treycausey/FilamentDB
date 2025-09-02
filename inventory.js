@@ -519,7 +519,7 @@ function setupColorPicker() {
         let suggested = null;
         try {
             if (window.FCX && typeof FCX.suggestColor === 'function') {
-                suggested = await FCX.suggestColor(hex, entry.Material);
+                suggested = await FCX.suggestColor(hex, entry.Material, entry.Manufacturer);
             }
         } catch {}
 

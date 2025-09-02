@@ -84,7 +84,8 @@ async function suggestColorFromInput() {
         const hex = normalizeToHex(ColorUtils.getColorHex(colorField.value || ''));
         if (!hex) return;
         const material = materialField.value || undefined;
-        const suggested = await FCX.suggestColor(hex, material);
+        const manufacturer = manufacturerField.value || undefined;
+        const suggested = await FCX.suggestColor(hex, material, manufacturer);
         if (Array.isArray(suggested) && suggested.length) {
             const choice = await showColorSuggestionsDialog(suggested, hex);
             if (choice) colorField.value = choice;
