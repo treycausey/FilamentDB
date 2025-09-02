@@ -81,15 +81,17 @@ function handleMaterialChange() {
 // Suggest color name via filamentcolors.xyz
 async function suggestColorFromInput() {
     try {
-        if (!window.FCX || typeof FCX.suggestColor !== 'function') return;
+        if (!window.FCX) {
+            alert('Color suggestions are unavailable. Open Settings → Color Suggestions to build local snapshots.');
+            return;
+        }
         const hex = normalizeToHex(ColorUtils.getColorHex(colorField.value || ''));
-        if (!hex) return;
         const material = materialField.value || undefined;
-        const manufacturer = manufacturerField.value || undefined;
         const choice = await showManufacturerSuggestionsDialogForGen(hex, material, '');
         if (choice) { colorField.value = choice.label; suggestedColorHex = choice.hex || null; }
     } catch (e) {
-        // silent failure
+        console.error('Suggest color failed:', e);
+        alert('Could not fetch suggestions. Try again after opening Settings → Color Suggestions.');
     }
 }
 
