@@ -48,14 +48,7 @@
     return `${hex.toUpperCase()}__${(material || 'any').toUpperCase()}`;
   }
 
-  async function maybeInvalidateCache() {
-    const latest = await ensureFreshVersion();
-    const stored = getCachedVersion();
-    if (!stored || !latest) return; // nothing to do
-    if (stored.db_last_modified !== latest.db_last_modified) {
-      cacheClear();
-    }
-  }
+  async function maybeInvalidateCache() { /* offline-only: no remote versioning */ }
 
   async function bulkColorMatch(hexes, materials) {
     // hexes: array of #RRGGBB; materials optional array of strings
@@ -130,23 +123,16 @@
     if (cached) return cached;
 
     try {
-      let result = null;
-      if (manufacturer) {
-        result = await fetchManufacturerAndMatch(hex, manufacturer, material);
-      } else {
-        const data = await bulkColorMatch([hex], material ? [material] : undefined);
-        const swatch = data[hex];
-        if (swatch) {
-          result = {
-            color_name: swatch.color_name,
-            manufacturer: swatch.manufacturer?.name,
-            hex_color: swatch.hex_color,
-            filament_type: swatch.filament_type?.parent_type?.name || swatch.filament_type?.name,
-            td: swatch.td,
-            url: swatch.url || null,
-          };
-        }
-      }
+      const arr = await new Promise((resolve) => {
+        const id = Math.random().toString(36).slice(2);
+        const w = startWorker();
+        if (!w) return resolve([]);
+        function onMsg(ev){ if (ev.data && ev.data.id === id) { worker.removeEventListener('message', onMsg); resolve(ev.data.result || []); } }
+        worker.addEventListener('message', onMsg);
+        worker.postMessage({ type: 'match', id, hex, material: material || null, manufacturer: manufacturer || null, top: 1 });
+        setTimeout(()=>{ worker.removeEventListener('message', onMsg); resolve([]); }, 1500);
+      });
+      const result = Array.isArray(arr) ? arr[0] : null;
       if (result) { cacheSet(key, result); return result; }
     } catch (e) {
       // ignore network errors
@@ -156,12 +142,54 @@
 
   // Optional: worker fallback (for future offline snapshots)
   let worker = null;
+  function injectSnapshotsIntoWorker() {
+    try {
+      const types = JSON.parse(localStorage.getItem('fcx_snapshot_types') || '[]');
+      types.forEach(t => {
+        const data = JSON.parse(localStorage.getItem('fcx_snapshot_' + t) || '[]');
+        if (Array.isArray(data) && data.length) {
+          const id = Math.random().toString(36).slice(2);
+          worker.postMessage({ type: 'setSnapshot', id, snapshotType: t, snapshotData: data });
+        }
+      });
+    } catch {}
+  }
+
   function startWorker() {
     if (worker || !global.Worker) return null;
     try {
       worker = new Worker('workers/match-worker.js');
+      // Bootstrap worker with any snapshots stored in localStorage
+      injectSnapshotsIntoWorker();
       return worker;
     } catch { return null; }
+  }
+
+  async function getSnapshotStatus() {
+    const w = startWorker(); if (!w) return { loaded: [] };
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      async function onMsg(ev){
+        if (ev.data && ev.data.id === id) {
+          worker.removeEventListener('message', onMsg);
+          const res = ev.data.result || { loaded: [] };
+          if (!res.loaded || !res.loaded.length) {
+            // attempt a second try by injecting snapshots now
+            injectSnapshotsIntoWorker();
+            // ask again quickly
+            const id2 = Math.random().toString(36).slice(2);
+            function onMsg2(ev2){ if (ev2.data && ev2.data.id === id2) { worker.removeEventListener('message', onMsg2); resolve(ev2.data.result || {loaded: []}); } }
+            worker.addEventListener('message', onMsg2);
+            worker.postMessage({ type: 'getStatus', id: id2 });
+          } else {
+            resolve(res);
+          }
+        }
+      }
+      worker.addEventListener('message', onMsg);
+      worker.postMessage({ type: 'getStatus', id });
+      setTimeout(()=>{ worker.removeEventListener('message', onMsg); resolve({ loaded: [] }); }, 1000);
+    });
   }
 
   async function suggestColor(hex, material, manufacturer) {
@@ -172,89 +200,54 @@
     if (!w) return null;
     return new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2);
-      function onMsg(ev) {
-        if (ev.data && ev.data.id === id) {
-          worker.removeEventListener('message', onMsg);
-          resolve(ev.data.result || null);
-        }
-      }
+      function onMsg(ev) { if (ev.data && ev.data.id === id) { worker.removeEventListener('message', onMsg); resolve(ev.data.result || null); } }
       worker.addEventListener('message', onMsg);
-      worker.postMessage({ type: 'match', id, hex, material: material || null, top: 3 });
+      worker.postMessage({ type: 'match', id, hex, material: material || null, manufacturer: manufacturer || null, top: 3 });
       setTimeout(() => { worker.removeEventListener('message', onMsg); resolve(null); }, 2000);
     });
   }
 
   // Manufacturers list (cached) and multi suggestions for UI
   const MFR_CACHE_KEY = 'fcx_mfrs_v1';
-  async function getManufacturers() {
+  async function getManufacturers(material) {
     const cached = readLS(MFR_CACHE_KEY, null);
-    if (cached && cached.ts && (now() - cached.ts < 1000*60*60*24*7)) return cached.list;
-    let list = [];
-    let url = `${ENDPOINT}/manufacturer/?ordering=name`;
-    try {
-      while (url) {
-        const page = await fetchJSON(url);
-        const results = page.results || page;
-        list.push(...results.map(r => r.name).filter(Boolean));
-        url = page.next || null;
-        if (url && !url.startsWith('http')) url = ENDPOINT.replace(/\/$/, '') + url;
-      }
-      list = Array.from(new Set(list));
-      writeLS(MFR_CACHE_KEY, { ts: now(), list });
-    } catch {}
-    return list;
+    if (cached && cached.ts && (now() - cached.ts < 1000*60*60*24*7) && cached.list) return cached.list;
+    const w = startWorker();
+    if (!w) return [];
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      function onMsg(ev){ if (ev.data && ev.data.id === id) { worker.removeEventListener('message', onMsg); const list=(ev.data.result||[]); writeLS(MFR_CACHE_KEY,{ts:now(),list}); resolve(list); } }
+      worker.addEventListener('message', onMsg);
+      worker.postMessage({ type: 'manufacturers', id, material: material || null });
+      setTimeout(()=>{ worker.removeEventListener('message', onMsg); resolve([]); }, 1500);
+    });
   }
 
   async function listSuggestions(hex, material, manufacturer, top = 5) {
-    if (manufacturer) {
-      const best = await fetchManufacturerAndMatch(hex, manufacturer, material);
-      return best ? [best] : [];
-    }
     const w = startWorker();
-    if (!w) {
-      const single = await getBestMatch(hex, material, null);
-      return single ? [single] : [];
-    }
+    if (!w) return [];
     return new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2);
-      function onMsg(ev) {
-        if (ev.data && ev.data.id === id) {
-          worker.removeEventListener('message', onMsg);
-          resolve(ev.data.result || []);
-        }
-      }
+      function onMsg(ev){ if (ev.data && ev.data.id === id) { worker.removeEventListener('message', onMsg); resolve(ev.data.result || []); } }
       worker.addEventListener('message', onMsg);
-      worker.postMessage({ type: 'match', id, hex, material: material || null, top });
-      setTimeout(() => { worker.removeEventListener('message', onMsg); resolve([]); }, 2000);
+      worker.postMessage({ type: 'match', id, hex, material: material || null, manufacturer: manufacturer || null, top });
+      setTimeout(()=>{ worker.removeEventListener('message', onMsg); resolve([]); }, 1500);
     });
   }
 
   // Text search by color name (optionally filter by manufacturer and material)
   async function searchByText(query, manufacturer, material, limit = 10) {
     if (!query || !query.trim()) return [];
-    let url = `${ENDPOINT}/swatch/?color_name__icontains=${encodeURIComponent(query.trim())}`;
-    if (manufacturer) url += `&manufacturer__name__icontains=${encodeURIComponent(manufacturer)}`;
-    if (material) url += `&filament_type__parent_type__name=${encodeURIComponent(material)}`;
-    const out = [];
-    try {
-      while (url && out.length < limit) {
-        const page = await fetchJSON(url);
-        const results = page.results || page;
-        for (const s of results) {
-          out.push({
-            color_name: s.color_name,
-            manufacturer: s.manufacturer?.name,
-            hex_color: s.hex_color,
-            filament_type: s.filament_type?.parent_type?.name || s.filament_type?.name,
-          });
-          if (out.length >= limit) break;
-        }
-        url = page.next || null;
-        if (url && !url.startsWith('http')) url = ENDPOINT.replace(/\/$/, '') + url;
-      }
-    } catch {}
-    return out;
+    const w = startWorker();
+    if (!w) return [];
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      function onMsg(ev){ if (ev.data && ev.data.id === id) { worker.removeEventListener('message', onMsg); resolve(ev.data.result || []); } }
+      worker.addEventListener('message', onMsg);
+      worker.postMessage({ type: 'search', id, query: query.trim(), material: material || null, manufacturer: manufacturer || null, limit });
+      setTimeout(()=>{ worker.removeEventListener('message', onMsg); resolve([]); }, 1500);
+    });
   }
 
-  global.FCX = { fetchVersion, getBestMatch, suggestColor, listSuggestions, getManufacturers, searchByText };
+  global.FCX = { fetchVersion: async()=>({}), getBestMatch, suggestColor, listSuggestions, getManufacturers, searchByText, getSnapshotStatus };
 })(window);

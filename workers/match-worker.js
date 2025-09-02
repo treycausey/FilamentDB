@@ -1,5 +1,6 @@
 // Offline/local snapshot matcher with CIEDE2000 distance
 let cache = { material: null, items: null };
+const localSnapshots = {}; // optional injected snapshots from main thread
 
 function h2d(h){return parseInt(h,16);} 
 function hexToRgb(hex){ hex=hex.replace('#','').toLowerCase(); return [h2d(hex.slice(0,2)),h2d(hex.slice(2,4)),h2d(hex.slice(4,6))]; }
@@ -31,6 +32,7 @@ function deltaE00(lab1, lab2){
 async function loadSnapshot(material){
   if(cache.items && cache.material===material) return cache.items;
   const type = material ? String(material).toUpperCase() : 'ALL';
+  if (localSnapshots[type]) { cache = { material: type, items: localSnapshots[type] }; return cache.items; }
   const file = type && ['PLA','PETG','ABS','TPU'].includes(type) ? `fcx-snapshot/${type.toLowerCase()}.json` : 'fcx-snapshot/all.json';
   try{
     const res = await fetch(file, { cache: 'force-cache' });
@@ -61,11 +63,42 @@ function bestMatches(hex, items, top=3){
 }
 
 self.addEventListener('message', async (ev) => {
-  const { type, id, hex, material, top } = ev.data || {};
+  const { type, id, hex, material, manufacturer, top, query, limit, snapshotType, snapshotData } = ev.data || {};
   if (type === 'match') {
     const items = await loadSnapshot(material);
     if(!items) return self.postMessage({ id, result: null });
-    const results = bestMatches(hex, items, top || 3);
+    const filtered = manufacturer ? items.filter(it => (it.mfr||'').toLowerCase() === manufacturer.toLowerCase()) : items;
+    const results = bestMatches(hex, filtered, top || 3);
     self.postMessage({ id, result: results });
+  } else if (type === 'search') {
+    const items = await loadSnapshot(material);
+    if(!items) return self.postMessage({ id, result: [] });
+    const q = (query || '').toLowerCase();
+    let filtered = items;
+    if (manufacturer) filtered = filtered.filter(it => (it.mfr||'').toLowerCase() === manufacturer.toLowerCase());
+    if (q) filtered = filtered.filter(it => (it.name||'').toLowerCase().includes(q));
+    const out = filtered.slice(0, limit || 10).map(it => ({
+      color_name: it.name,
+      manufacturer: it.mfr,
+      hex_color: '#'+it.hex,
+      filament_type: it.type
+    }));
+    self.postMessage({ id, result: out });
+  } else if (type === 'manufacturers') {
+    const items = await loadSnapshot(material);
+    if(!items) return self.postMessage({ id, result: [] });
+    const set = new Set();
+    items.forEach(it => { if (it.mfr) set.add(it.mfr); });
+    const list = Array.from(set).sort((a,b)=>a.localeCompare(b));
+    self.postMessage({ id, result: list });
+  } else if (type === 'setSnapshot') {
+    // Set/replace a snapshot for a given type from the main thread
+    if (snapshotType && Array.isArray(snapshotData)) {
+      localSnapshots[snapshotType] = snapshotData;
+      if (cache.material === snapshotType) { cache = { material: null, items: null }; }
+    }
+    self.postMessage({ id, result: true });
+  } else if (type === 'getStatus') {
+    self.postMessage({ id, result: { loaded: Object.keys(localSnapshots) } });
   }
 });

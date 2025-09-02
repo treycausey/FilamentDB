@@ -86,7 +86,7 @@ async function suggestColorFromInput() {
         if (!hex) return;
         const material = materialField.value || undefined;
         const manufacturer = manufacturerField.value || undefined;
-        const choice = await showManufacturerSuggestionsDialogForGen(hex, material, manufacturer);
+        const choice = await showManufacturerSuggestionsDialogForGen(hex, material, '');
         if (choice) { colorField.value = choice.label; suggestedColorHex = choice.hex || null; }
     } catch (e) {
         // silent failure
@@ -166,6 +166,10 @@ async function showManufacturerSuggestionsDialogForGen(hex, material, defaultMfr
 
         async function reload() {
             list.innerHTML='Loading…';
+            if (window.FCX && typeof FCX.getSnapshotStatus === 'function') {
+                await FCX.getSnapshotStatus();
+                await new Promise(r=>setTimeout(r,100));
+            }
             const sugg = await FCX.listSuggestions(hex, material, select.value || null, 5);
             list.innerHTML='';
             if (!sugg || !sugg.length) { const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return; }

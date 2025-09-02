@@ -1,0 +1,5 @@
+[
+  {"hex":"ff0000","name":"PLA Red","mfr":"Generic","type":"PLA"},
+  {"hex":"00ff00","name":"PLA Green","mfr":"Generic","type":"PLA"},
+  {"hex":"0000ff","name":"PLA Blue","mfr":"Generic","type":"PLA"}
+]

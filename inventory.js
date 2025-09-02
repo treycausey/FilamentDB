@@ -597,8 +597,8 @@ async function openColorSelectionFlow(id) {
     const entry = allEntries.find(en => en.id === id);
     if (!entry) return;
     const material = entry.Material || undefined;
-    const defaultMfr = entry.Manufacturer || '';
-    const baseHex = entry.ColorHex || getColorHex(entry.Color) || '#000000';
+    const defaultMfr = '';
+    const baseHex = normalizeToHex(entry.ColorHex || getColorHex(entry.Color) || '#000000');
 
     // Build overlay UI
     const overlay = document.createElement('div');
@@ -645,6 +645,14 @@ async function openColorSelectionFlow(id) {
         list.innerHTML='Loading…';
         let items = [];
         try {
+            // Ensure snapshots are injected/loaded at least once
+            if (window.FCX && typeof FCX.getSnapshotStatus === 'function') {
+                const st1 = await FCX.getSnapshotStatus();
+                if (!st1.loaded || st1.loaded.length === 0) {
+                    // give the worker a moment after injection
+                    await new Promise(r=>setTimeout(r, 150));
+                }
+            }
             if (search.value && window.FCX) {
                 items = await FCX.searchByText(search.value, mfrSel.value || null, material, 10);
             } else if (window.FCX) {
@@ -653,7 +661,38 @@ async function openColorSelectionFlow(id) {
             }
         } catch {}
         list.innerHTML='';
-        if (!items || !items.length) { const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return; }
+        if (!items || !items.length) {
+            try {
+                const st = await FCX.getSnapshotStatus();
+                if (!st.loaded || st.loaded.length === 0) {
+                    const note = document.createElement('div');
+                    note.style.color='#666'; note.style.marginBottom='8px';
+                    note.innerHTML = 'No local color snapshots found. Build them in Settings → Color Suggestions.';
+                    const go = document.createElement('a'); go.textContent='Open Settings'; go.href='settings.html'; go.className='refine-color';
+                    const wrap = document.createElement('div'); wrap.appendChild(note); wrap.appendChild(go); list.appendChild(wrap); return;
+                }
+            } catch {}
+            // Try fallback to All manufacturers if a specific mfr is selected
+            if ((mfrSel.value || '') && window.FCX) {
+                try {
+                    const allItems = search.value ? await FCX.searchByText(search.value, null, material, 10)
+                                                 : await FCX.listSuggestions(baseHex, material, null, 5);
+                    if (allItems && allItems.length) {
+                        const hint = document.createElement('div');
+                        hint.style.color = '#666';
+                        hint.style.marginBottom = '6px';
+                        hint.textContent = 'No matches for this manufacturer. Show results from all manufacturers?';
+                        const showBtn = document.createElement('button');
+                        showBtn.textContent = 'Show All';
+                        showBtn.style.marginLeft = '8px'; showBtn.style.padding='4px 8px'; showBtn.style.border='1px solid #eee'; showBtn.style.borderRadius='8px'; showBtn.style.cursor='pointer';
+                        showBtn.addEventListener('click', ()=>{ mfrSel.value=''; loadSuggestions(); });
+                        const wrap = document.createElement('div'); wrap.appendChild(hint); wrap.appendChild(showBtn); list.appendChild(wrap);
+                        return;
+                    }
+                } catch {}
+            }
+            const none=document.createElement('div'); none.textContent='No suggestions.'; none.style.color='#666'; list.appendChild(none); return;
+        }
         items.forEach(s => {
             const btn = document.createElement('button');
             const label = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''}`;

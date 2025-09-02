@@ -45,6 +45,20 @@
     $('exportJsonBtn').addEventListener('click', exportJson);
     $('exportCsvBtn').addEventListener('click', exportCsv);
     $('clearAllBtn').addEventListener('click', clearAllInventory);
+
+    // Snapshot controls
+    const offlineOnlyToggle = document.getElementById('offlineOnlyToggle');
+    const rebuildBtn = document.getElementById('rebuildSnapshotBtn');
+    const clearSnapBtn = document.getElementById('clearSnapshotBtn');
+    if (offlineOnlyToggle) {
+      offlineOnlyToggle.checked = (localStorage.getItem('fcx_offline_only') || 'true') === 'true';
+      offlineOnlyToggle.addEventListener('change', () => {
+        localStorage.setItem('fcx_offline_only', offlineOnlyToggle.checked ? 'true' : 'false');
+        updateSnapshotStatus();
+      });
+    }
+    if (rebuildBtn) rebuildBtn.addEventListener('click', rebuildSnapshots);
+    if (clearSnapBtn) clearSnapBtn.addEventListener('click', clearSnapshots);
   }
 
   function refreshStatus() {
@@ -66,6 +80,78 @@
     enPill.className = 'status-pill ' + (enabled ? 'ok' : 'warn');
 
     $('enableCloudToggle').checked = enabled;
+    updateSnapshotStatus();
+  }
+
+  async function updateSnapshotStatus() {
+    const statusEl = document.getElementById('snapshotStatus');
+    if (!statusEl) return;
+    try {
+      const list = JSON.parse(localStorage.getItem('fcx_snapshot_types') || '[]');
+      statusEl.textContent = `Status: ${list.length ? 'Loaded ' + list.join(', ') : 'No local snapshots'}`;
+    } catch {
+      statusEl.textContent = 'Status: Unknown';
+    }
+  }
+
+  async function rebuildSnapshots() {
+    const ok = confirm('This will fetch the latest color data from filamentcolors.xyz and store snapshots locally for offline suggestions. Continue?');
+    if (!ok) return;
+    const btn = document.getElementById('rebuildSnapshotBtn');
+    btn.disabled = true; btn.textContent = 'Building…';
+    try {
+      const endpoint = 'https://filamentcolors.xyz/api';
+      async function fetchJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error('Network'); return r.json(); }
+      let url = `${endpoint}/swatch/?page=1`; const all=[];
+      while (url) {
+        const page = await fetchJSON(url);
+        const results = page.results || page;
+        for (const s of results) {
+          all.push({
+            id: s.id,
+            hex: (s.hex_color||'').replace('#','').toLowerCase(),
+            name: s.color_name,
+            mfr: s.manufacturer?.name || null,
+            type: (s.filament_type?.parent_type?.name || s.filament_type?.name || '').toUpperCase()
+          });
+        }
+        url = page.next || null;
+        if (url && !url.startsWith('http')) url = endpoint.replace(/\/$/, '') + url;
+        $('snapshotStatus').textContent = `Fetched ${all.length}…`;
+      }
+      const groups = { ALL: all };
+      ['PLA','PETG','ABS','TPU'].forEach(t => { groups[t] = all.filter(x => (x.type||'').includes(t)); });
+      // Store in localStorage and inject into worker
+      const loaded = [];
+      for (const [key, arr] of Object.entries(groups)) {
+        localStorage.setItem('fcx_snapshot_' + key, JSON.stringify(arr));
+        loaded.push(key);
+        // Push into worker
+        if (window.Worker) {
+          try {
+            const w = new Worker('workers/match-worker.js');
+            // notify then terminate
+            const id = Math.random().toString(36).slice(2);
+            w.postMessage({ type: 'setSnapshot', id, snapshotType: key, snapshotData: arr });
+            setTimeout(()=> w.terminate(), 200);
+          } catch {}
+        }
+      }
+      localStorage.setItem('fcx_snapshot_types', JSON.stringify(loaded));
+      $('snapshotStatus').textContent = `Status: Loaded ${loaded.join(', ')}`;
+      alert('Snapshots rebuilt successfully.');
+    } catch (e) {
+      alert('Failed to rebuild snapshots.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Rebuild Snapshots (Fetch)';
+    }
+  }
+
+  function clearSnapshots() {
+    ['ALL','PLA','PETG','ABS','TPU'].forEach(k => localStorage.removeItem('fcx_snapshot_' + k));
+    localStorage.removeItem('fcx_snapshot_types');
+    updateSnapshotStatus();
+    alert('Local snapshots cleared.');
   }
 
   function ensureReadyOrGuide() {
@@ -217,4 +303,3 @@
     alert('All local inventory entries deleted.');
   }
 })();
-

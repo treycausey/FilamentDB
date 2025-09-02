@@ -1,0 +1,12 @@
+[
+  {"hex":"ff0000","name":"Red","mfr":"Generic","type":"PLA"},
+  {"hex":"00ff00","name":"Green","mfr":"Generic","type":"PLA"},
+  {"hex":"0000ff","name":"Blue","mfr":"Generic","type":"PLA"},
+  {"hex":"ffff00","name":"Yellow","mfr":"Generic","type":"PLA"},
+  {"hex":"ff00ff","name":"Magenta","mfr":"Generic","type":"PLA"},
+  {"hex":"00ffff","name":"Cyan","mfr":"Generic","type":"PLA"},
+  {"hex":"000000","name":"Black","mfr":"Generic","type":"PLA"},
+  {"hex":"ffffff","name":"White","mfr":"Generic","type":"PLA"},
+  {"hex":"808080","name":"Gray","mfr":"Generic","type":"PLA"},
+  {"hex":"ffa500","name":"Orange","mfr":"Generic","type":"PLA"}
+]

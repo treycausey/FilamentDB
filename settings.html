@@ -40,6 +40,17 @@
 
         <section class="settings-section">
             <div class="settings-card">
+                <h3>Color Suggestions (filamentcolors)</h3>
+                <div class="muted">Uses local snapshots for offline, precise color suggestions.</div>
+                <div class="settings-actions" style="margin-top:12px;">
+                    <label class="switch"><input type="checkbox" id="offlineOnlyToggle" checked> <span>Use local snapshots only</span></label>
+                    <button class="settings-button secondary-button" id="rebuildSnapshotBtn">Rebuild Snapshots (Fetch)</button>
+                    <button class="settings-button secondary-button" id="clearSnapshotBtn">Clear Local Snapshots</button>
+                </div>
+                <div id="snapshotStatus" class="muted" style="margin-top:8px;">Status: Unknown</div>
+            </div>
+
+            <div class="settings-card">
                 <h3>Cloud Sync</h3>
                 <div class="muted" id="cloudStatusText">Loading status…</div>
                 <div style="margin-top:8px;">
@@ -74,4 +85,3 @@
     <script src="settings.js"></script>
 </body>
 </html>
-
