@@ -203,15 +203,16 @@ See LICENSES.md for full license information
     
     
     <!-- Load dependencies -->
-    <script src="shared-qr-processing.js"></script>
-    <script src="color-detection.js"></script>
-    <script src="color-utils.js"></script>
-    <script src="cloud-storage.js"></script>
-    <script src="fcx-client.js"></script>
-    <script src="theme.js"></script>
+    <script src="src/utils/shared-qr-processing.js"></script>
+    <script src="src/utils/color-detection.js"></script>
+    <script src="src/utils/color-utils.js"></script>
+    <script src="src/utils/cloud-storage.js"></script>
+    <script src="src/utils/fcx-client.js"></script>
+    <script src="src/utils/theme.js"></script>
+    <script type="module" src="src/utils/database.js"></script>
     
     <!-- Load local QRious library -->
-    <script src="qrious-local.js"></script>
+    <script src="lib/qrious-local.js"></script>
     
     
     <script>
@@ -277,6 +278,7 @@ See LICENSES.md for full license information
             }
         });
     </script>
-    <script src="generator.js"></script>
+    <script src="src/utils/shared-utils.js"></script>
+    <script src="src/js/generator.js"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@ See LICENSES.md for full license information
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory - FilamentDB</title>
     <meta name="theme-color" content="#FF6B35">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FilamentDB">
     <link rel="manifest" href="manifest.json">
@@ -160,7 +160,7 @@ See LICENSES.md for full license information
                         <path d="M3 12a9 9 0 1 0 9-9"></path>
                         <polyline points="3,3 3,9 9,9"></polyline>
                     </svg>
-                    Revert to Cloud
+                    Refresh from Database
                 </button>
                 <button id="clearAllButton" class="clear-all-button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -216,11 +216,14 @@ See LICENSES.md for full license information
         </div>
     </div>
     
-    <script src="color-detection.js"></script>
-    <script src="theme.js"></script>
-    <script src="color-utils.js"></script>
-    <script src="cloud-storage.js"></script>
-    <script src="fcx-client.js"></script>
-    <script src="inventory.js"></script>
+    <script src="src/utils/color-detection.js"></script>
+    <script src="src/utils/theme.js"></script>
+    <script src="src/utils/color-utils.js"></script>
+    <script src="src/utils/cloud-storage.js"></script>
+    <script src="src/utils/fcx-client.js"></script>
+    <script type="module" src="src/utils/database.js"></script>
+    <script src="src/utils/shared-utils.js"></script>
+    <script src="src/utils/db-status.js"></script>
+    <script src="src/js/inventory.js"></script>
 </body>
 </html>

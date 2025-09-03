@@ -12,10 +12,10 @@
     "dev": "npx live-server . --port=3000 --host=0.0.0.0",
     "serve": "npx http-server . -p 3000 -o",
     "start": "npm run dev",
-    "mobile": "node mobile-server.js",
-    "mobile-http": "HTTPS=false node mobile-server.js",
-    "test": "node validate.js",
-    "validate": "node validate.js"
+    "mobile": "node src/utils/mobile-server.js",
+    "mobile-http": "HTTPS=false node src/utils/mobile-server.js",
+    "test": "node src/utils/validate.js",
+    "validate": "node src/utils/validate.js"
   },
   "keywords": [
     "filament",
@@ -48,5 +48,8 @@
     "!tests.html",
     "!error-handling-tests.js",
     "!validate.js"
-  ]
+  ],
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0"
+  }
 }

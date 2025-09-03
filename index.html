@@ -125,9 +125,15 @@ See LICENSES.md for full license information
         </div>
     </div>
     
-    <script src="jsqr-local.js"></script>
-    <script src="cloud-storage.js"></script>
-    <script src="theme.js"></script>
-    <script src="app.js"></script>
+    <script type="module">
+        import QrScanner from './lib/qr-scanner.min.js';
+        QrScanner.WORKER_PATH = './lib/qr-scanner-worker.min.js';
+        window.QrScanner = QrScanner;
+    </script>
+    <script src="src/utils/cloud-storage.js"></script>
+    <script src="src/utils/theme.js"></script>
+    <script type="module" src="src/utils/database.js"></script>
+    <script src="src/utils/shared-utils.js"></script>
+    <script src="src/js/app.js"></script>
 </body>
 </html>

@@ -170,9 +170,11 @@
         </div>
     </div>
 
-    <!-- Load dependencies -->
-    <script src="cloud-storage.js"></script>
-    <script src="shared-qr-processing.js"></script>
+    <!-- Load dependencies (use project sources) -->
+    <script src="../src/utils/cloud-storage.js"></script>
+    <script src="../src/utils/color-utils.js"></script>
+    <script src="../src/utils/shared-utils.js"></script>
+    <script src="../src/utils/shared-qr-processing.js"></script>
     <script src="error-handling-tests.js"></script>
     <script>
         // Test runner
@@ -200,6 +202,7 @@
             await runCameraTests();
             await runQRProcessingTests();
             await runInventoryTests();
+            await runDBMappingTests();
             await runErrorHandlingTestSuite();
             
             // Update summary
@@ -406,6 +409,86 @@
                 );
             }
             
+            container.innerHTML = html;
+        }
+
+        // DB Mapping Tests (UI <-> DB field normalization)
+        async function runDBMappingTests() {
+            const container = document.getElementById('inventoryTests');
+            let html = container.innerHTML || '';
+
+            try {
+                // Stub FilamentDB to simulate database rows in snake_case
+                window.FilamentDB = {
+                    async init(){ return true; },
+                    isReady(){ return true; },
+                    async getFilaments(){
+                        return [{
+                            id: 'row1', manufacturer: 'Acme', material: 'PLA', color: 'Black',
+                            hex_color: '#000000', temp1: 210, temp2: 60,
+                            spool_count: 2, remaining_percentage: 75, created_at: '2024-01-01T00:00:00.000Z'
+                        }, {
+                            id: 'row2', manufacturer: 'Acme', material: 'PETG', color: 'White'
+                        }];
+                    }
+                };
+
+                const entries = await SharedUtils.getStoredEntries();
+                const a = entries[0];
+                const b = entries[1];
+
+                const ok = a && a.Manufacturer === 'Acme' && a.Material === 'PLA' && a.Color === 'Black' &&
+                           a.ColorHex === '#000000' && a.Temp1 === '210' && a.Temp2 === '60' &&
+                           a.spoolCount === 2 && a.remainingPercentage === 75 && a.timestamp;
+                const defaultsOk = b && b.Temp1 === 'NA' && b.Temp2 === 'NA' && b.spoolCount === 1 && b.remainingPercentage === 100;
+
+                if (ok && defaultsOk) {
+                    html += createTestCase(
+                        'DB → UI normalization',
+                        'pass',
+                        'Mapped snake_case DB rows to PascalCase UI fields with sensible defaults'
+                    );
+                } else {
+                    html += createTestCase(
+                        'DB → UI normalization',
+                        'fail',
+                        'Normalization failed or defaults incorrect'
+                    );
+                }
+            } catch (error) {
+                html += createTestCase('DB → UI normalization', 'fail', 'Error during mapping test', error.message);
+            }
+
+            // CSV import simulation (parsing + addEntry + read back)
+            try {
+                const csv = 'Manufacturer,Material,Color,Temp1,Temp2,Timestamp\n' +
+                            'Acme,PLA,Black,210,60,2024-01-01T00:00:00.000Z\n' +
+                            'Acme,PLA,Red,205,60,2024-01-02T00:00:00.000Z';
+                const lines = csv.split('\n');
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    const values = line.match(/(".*?"|[^,]+)/g).map(v => v.replace(/"/g, '').trim());
+                    const entry = {
+                        Manufacturer: values[0], Material: values[1], Color: values[2],
+                        Temp1: values[3], Temp2: values[4], timestamp: values[5] || new Date().toISOString(),
+                        id: Date.now().toString() + Math.random().toString(36).slice(2)
+                    };
+                    await SharedUtils.addEntry(entry);
+                }
+                const out = await SharedUtils.getStoredEntries();
+                const count = out.filter(e => e.Manufacturer === 'Acme').length;
+                if (count >= 2) {
+                    html += createTestCase('CSV import flow (simulated)', 'pass', 'Entries parsed, stored, and read back');
+                } else {
+                    html += createTestCase('CSV import flow (simulated)', 'fail', `Expected ≥2 entries, got ${count}`);
+                }
+                // cleanup local storage
+                localStorage.removeItem('qrCodeEntries');
+            } catch (error) {
+                html += createTestCase('CSV import flow (simulated)', 'fail', 'Error importing CSV in test', error.message);
+            }
+
             container.innerHTML = html;
         }
         

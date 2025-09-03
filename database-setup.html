@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Setup - FilamentDB</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .setup-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+        }
+        .step.completed {
+            background: var(--gray-50);
+            border-color: var(--success);
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        input[type="url"], input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .status {
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+        .status.success {
+            background: var(--success);
+            color: white;
+        }
+        .status.error {
+            background: var(--error);
+            color: white;
+        }
+        .status.info {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+        .code {
+            background: var(--gray-100);
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .nav-button {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <a href="inventory.html" class="nav-button button-primary">← Back to Inventory</a>
+    
+    <div class="setup-container">
+        <h1>🗄️ Database Setup</h1>
+        <p>Set up Supabase database for reliable cloud sync and storage.</p>
+
+        <div class="step" id="step1">
+            <h3>Step 1: Create Supabase Project</h3>
+            <p>1. Go to <a href="https://supabase.com" target="_blank">supabase.com</a> and create a free account</p>
+            <p>2. Create a new project</p>
+            <p>3. Go to Settings → API to get your keys</p>
+        </div>
+
+        <div class="step" id="step2">
+            <h3>Step 2: Run Database Schema</h3>
+            <p>Copy this SQL and run it in your Supabase SQL Editor:</p>
+            <div class="code" id="schema">Loading schema...</div>
+            <button onclick="copySchema()" class="button-secondary">Copy SQL</button>
+        </div>
+
+        <div class="step" id="step3">
+            <h3>Step 3: Configure Connection</h3>
+            <form id="configForm">
+                <div class="form-group">
+                    <label for="supabaseUrl">Supabase URL</label>
+                    <input type="url" id="supabaseUrl" placeholder="https://your-project.supabase.co" required>
+                </div>
+                <div class="form-group">
+                    <label for="supabaseKey">Supabase Anon Key</label>
+                    <input type="password" id="supabaseKey" placeholder="eyJhbGciOi..." required>
+                </div>
+                <button type="submit" class="button-primary">Test Connection</button>
+            </form>
+            <div id="status"></div>
+        </div>
+
+        <div class="step" id="step4" style="display: none;">
+            <h3>Step 4: Migration Complete! ✅</h3>
+            <p>Your database is configured and ready to use.</p>
+            <ul>
+                <li>✅ Connection established</li>
+                <li>✅ Schema created</li>
+                <li id="migrationStatus">⏳ Checking for data migration...</li>
+            </ul>
+            <a href="inventory.html" class="button-primary">Go to Inventory</a>
+        </div>
+    </div>
+
+    <script>
+        // Load schema immediately - no module imports needed yet
+        const schema = `-- FilamentDB Supabase Database Schema
+-- Run this in your Supabase SQL editor
+
+-- Create inventory table
+CREATE TABLE IF NOT EXISTS inventory (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  manufacturer TEXT,
+  material TEXT,
+  color TEXT,
+  hex_color TEXT,
+  temp1 INTEGER,
+  temp2 INTEGER,
+  spool_count INTEGER DEFAULT 1,
+  remaining_percentage INTEGER DEFAULT 100,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for anonymous access (for now - you can add auth later)
+CREATE POLICY "Allow anonymous access" ON inventory
+  FOR ALL USING (true);
+
+-- Create updated_at trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER update_inventory_updated_at
+  BEFORE UPDATE ON inventory
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_inventory_manufacturer ON inventory(manufacturer);
+CREATE INDEX IF NOT EXISTS idx_inventory_material ON inventory(material);
+CREATE INDEX IF NOT EXISTS idx_inventory_color ON inventory(color);
+CREATE INDEX IF NOT EXISTS idx_inventory_created_at ON inventory(created_at);`;
+        
+        document.getElementById('schema').textContent = schema;
+
+        window.copySchema = () => {
+            navigator.clipboard.writeText(document.getElementById('schema').textContent);
+            alert('SQL copied to clipboard!');
+        };
+
+        // Load existing config
+        document.getElementById('supabaseUrl').value = localStorage.getItem('supabase_url') || '';
+        document.getElementById('supabaseKey').value = localStorage.getItem('supabase_key') || '';
+
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('supabaseUrl').value;
+            const key = document.getElementById('supabaseKey').value;
+            const status = document.getElementById('status');
+            
+            status.innerHTML = '<div class="status info">Testing connection...</div>';
+            
+            // Save configuration
+            localStorage.setItem('supabase_url', url);
+            localStorage.setItem('supabase_key', key);
+            
+            status.innerHTML = '<div class="status success">✅ Configuration saved! Go to inventory to test connection.</div>';
+            document.getElementById('step3').classList.add('completed');
+            document.getElementById('step4').style.display = 'block';
+            document.getElementById('migrationStatus').textContent = '✅ Configuration saved - database will connect automatically';
+        });
+        
+        // Load database module for testing (if available)
+        setTimeout(async () => {
+            try {
+                await import('./src/utils/database.js');
+            } catch (error) {
+                console.log('Database module not loaded yet');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Load Test</title>
+</head>
+<body>
+    <h1>Testing Script Loading</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        let errors = [];
+        let loaded = [];
+        
+        window.addEventListener('error', (e) => {
+            errors.push(`❌ Failed to load: ${e.filename || e.target.src}`);
+        });
+        
+        // Test loading critical scripts
+        const scripts = [
+            'src/utils/shared-utils.js',
+            'src/utils/cloud-storage.js',
+            'src/utils/theme.js',
+            'src/js/app.js',
+            'lib/qr-scanner.min.js'
+        ];
+        
+        scripts.forEach(src => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => loaded.push(`✅ Loaded: ${src}`);
+            script.onerror = () => errors.push(`❌ Failed: ${src}`);
+            document.head.appendChild(script);
+        });
+        
+        setTimeout(() => {
+            results.innerHTML = `
+                <h2>Results:</h2>
+                <pre>${loaded.join('\n')}</pre>
+                <pre>${errors.join('\n')}</pre>
+            `;
+        }, 1000);
+    </script>
+</body>
+</html>

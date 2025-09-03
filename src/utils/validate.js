@@ -13,7 +13,7 @@ class FilamentDBValidator {
     constructor() {
         this.errors = [];
         this.warnings = [];
-        this.baseDir = __dirname;
+        this.baseDir = path.resolve(__dirname, '../..');
     }
 
     async validate() {
@@ -37,16 +37,16 @@ class FilamentDBValidator {
         
         const requiredFiles = [
             'index.html',
-            'app.js', 
+            'src/js/app.js', 
             'inventory.html',
-            'inventory.js',
+            'src/js/inventory.js',
             'generator.html',
-            'generator.js',
-            'cloud-storage.js',
-            'shared-qr-processing.js',
+            'src/js/generator.js',
+            'src/utils/cloud-storage.js',
+            'src/utils/shared-qr-processing.js',
             'styles.css',
-            'tests.html',
-            'error-handling-tests.js'
+            'tests/tests.html',
+            'tests/error-handling-tests.js'
         ];
 
         requiredFiles.forEach(file => {
@@ -59,8 +59,8 @@ class FilamentDBValidator {
         });
 
         // Check for test files
-        if (!fs.existsSync(path.join(this.baseDir, 'tests.html'))) {
-            this.addError('Missing test suite: tests.html');
+        if (!fs.existsSync(path.join(this.baseDir, 'tests/tests.html'))) {
+            this.addError('Missing test suite: tests/tests.html');
         }
     }
 

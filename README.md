@@ -140,27 +140,22 @@ Comprehensive filament collection management.
 - Statistics dashboard
 - Export/import functionality (CSV format)
 - Tag management with click-to-filter
-- **Cloud sync integration** for cross-device access (configure in Settings)
+- **Database sync integration** using Supabase (configure in Database Setup)
 
-### ☁️ Cloud Sync Setup
+### 🗄️ Database Setup (Supabase)
 
-All cloud configuration now lives in the dedicated Settings page.
+FilamentDB now supports a real database via Supabase. The app gracefully falls back to localStorage when a database is not configured.
 
-**First Device (create storage):**
-1. Go to [JSONBin.io](https://jsonbin.io) and create a free account
-2. Copy your API key from your profile
-3. Open Settings → Cloud Sync → "Setup (New Storage)"
-4. Paste your API key. The app creates storage and shows a sharing code
+1. Create a Supabase project and obtain the URL and anon key
+2. Apply `supabase-setup.sql` to create the `inventory` table
+3. Open `database-setup.html` and paste the URL and anon key
+4. The Inventory page will show “Database Sync” and live‑update when connected
 
-**Additional Device (join existing):**
-1. On your first device, copy the sharing code from Settings → "Show Sharing Info"
-2. On the new device, open Settings → "Setup (Additional Device)"
-3. Paste the sharing code (`API_KEY|STORAGE_ID`) and connect
+Notes:
+- Local usage requires no setup — data is stored in `localStorage`
+- When a DB is configured, reads/writes use Supabase and inventory syncs across devices
 
-**Usage:**
-- Inventory page "Cloud Sync" button runs Sync Now if configured, or opens Settings if not
-- Smart merging prevents duplicates across devices
-- Reset/disable/toggle available in Settings
+Legacy JSONBin cloud sync remains available under Settings for users who prefer it.
 
 ### 🛠️ Data Format
 
@@ -230,7 +225,7 @@ FilamentDB follows **Dieter Rams' "Less but Better"** design principles:
 ### Test Suites
 FilamentDB includes comprehensive testing:
 
-- **`tests.html`**: Complete test suite with 30+ test cases
+- **`tests/tests.html`**: Complete test suite with 30+ test cases
   - Cloud storage functionality tests
   - Camera integration tests  
   - QR code processing tests
@@ -239,7 +234,7 @@ FilamentDB includes comprehensive testing:
 
 ### Running Tests
 1. Start the development server: `npm start` or `npm run mobile`
-2. Navigate to test suite: http://localhost:3000/tests.html
+2. Navigate to test suite: http://localhost:3000/tests/tests.html
 3. Click "Run All Tests" to execute the complete test battery
 4. View detailed results with pass/fail indicators
 
@@ -268,7 +263,7 @@ filamentdb/
 ├── jsqr-local.js            # QR scanning library
 ├── qrious-local.js          # QR generation library
 ├── mobile-server.js         # HTTPS development server
-├── tests.html               # Comprehensive test suite
+├── tests/                   # Comprehensive test suite (open tests/tests.html)
 ├── error-handling-tests.js  # Error handling tests
 ├── validate.js              # Code validation script
 └── manifest.json            # PWA configuration
@@ -282,10 +277,18 @@ filamentdb/
 - **PWA**: Offline functionality, mobile experience
 
 ### Data Storage
-- **Local Storage**: Primary storage in browser (offline-first)
-- **Cloud Sync**: Optional JSONBin.io integration for cross-device access
-- **No Database**: Self-contained, no complex setup required
+- **Supabase (optional)**: Primary when configured; enables multi-device sync
+- **Local Storage**: Fallback when DB isn’t configured or offline
+- **Legacy Cloud Sync**: Optional JSONBin.io integration retained for compatibility
 - **Privacy-First**: You control your data and API keys
+
+### Field Mapping
+UI code historically used PascalCase fields while the database uses snake_case. The app normalizes automatically:
+
+- UI → DB: `Manufacturer/Material/Color/ColorHex/Temp1/Temp2/spoolCount/remainingPercentage` → `manufacturer/material/color/hex_color/temp1/temp2/spool_count/remaining_percentage`
+- DB → UI: Performed in `src/utils/shared-utils.js#getStoredEntries()`
+
+This mapping prevents display/sorting bugs when switching between local and database storage.
 
 ## 🔧 Development
 

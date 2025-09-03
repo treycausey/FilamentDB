@@ -1,8 +1,56 @@
 # FilamentDB API Documentation
 
-## Cloud Storage API
+## Database API (Supabase)
 
-FilamentDB uses the [JSONBin.io](https://jsonbin.io) API for cross-device cloud synchronization. This document describes the cloud storage functionality and how to integrate with it.
+FilamentDB supports a first-class database backend using Supabase. When configured, the app reads/writes inventory to the `inventory` table and enables real‑time updates. If not configured, the app transparently falls back to localStorage.
+
+### Class: `FilamentDB`
+
+Location: `src/utils/database.js` (ES module)
+
+#### Key Methods
+
+- `init(): Promise<boolean>` — Initializes the Supabase client (no-op if credentials missing)
+- `isReady(): boolean` — True when connected to Supabase
+- `getFilaments(filters?): Promise<Row[]>` — Returns rows from DB or local fallback
+- `addFilament(entry): Promise<Row>` — Inserts a new row (maps UI fields automatically)
+- `updateFilament(id, changes): Promise<Row>` — Updates a row by id (UI→DB mapping applied)
+- `deleteFilament(id): Promise<boolean>` — Deletes a row
+- `clearAll(): Promise<boolean>` — Removes all rows
+- `subscribeToChanges(callback)` — Real-time channel for live updates
+
+#### Row Schema (database)
+
+```
+id UUID/STRING
+manufacturer TEXT
+material TEXT
+color TEXT
+hex_color TEXT
+temp1 INTEGER
+temp2 INTEGER
+spool_count INTEGER
+remaining_percentage INTEGER
+created_at TIMESTAMP (default now())
+notes TEXT
+```
+
+### UI <→ DB Field Mapping
+
+The UI historically used PascalCase keys. Normalization is handled centrally in `src/utils/shared-utils.js`.
+
+- UI → DB: `Manufacturer/Material/Color/ColorHex/Temp1/Temp2/spoolCount/remainingPercentage` → `manufacturer/material/color/hex_color/temp1/temp2/spool_count/remaining_percentage`
+- DB → UI: `getStoredEntries()` maps DB rows back to UI shape and supplies sensible defaults (e.g., `Temp1/Temp2` = 'NA').
+
+### Local Fallback
+
+If Supabase URL/key are not configured, `FilamentDB` stores and retrieves data from `localStorage` under `qrCodeEntries`.
+
+---
+
+## Legacy Cloud Storage API (Optional)
+
+FilamentDB still ships the previous JSONBin-based sync as an optional feature. New deployments should prefer the database backend.
 
 ### Overview
 
@@ -15,7 +63,7 @@ The `CloudStorage` class provides a complete cloud sync solution for FilamentDB 
 
 ### Class: `CloudStorage`
 
-Located in `cloud-storage.js`
+Located in `src/utils/cloud-storage.js`
 
 #### Constructor
 
@@ -135,19 +183,21 @@ interface StatusObject {
 
 Disables cloud storage without removing settings.
 
-### Data Format
-
-#### Inventory Entry
+### Inventory Entry (UI shape)
 
 ```typescript
 interface InventoryEntry {
+  id: string;
   Manufacturer: string;    // e.g., "Hatchbox"
   Material: string;        // e.g., "PLA"
-  Color: string;          // e.g., "Black"
-  Temp1: string;          // Extruder temp, e.g., "210"
-  Temp2: string;          // Bed temp, e.g., "60"
-  timestamp: string;      // ISO 8601 timestamp
-  id: string;            // Unique identifier
+  Color: string;           // e.g., "Black"
+  ColorHex?: string;       // optional #RRGGBB
+  Temp1: string;           // e.g., "210" or 'NA'
+  Temp2: string;           // e.g., "60" or 'NA'
+  spoolCount?: number;     // default 1
+  remainingPercentage?: number; // default 100
+  timestamp: string;       // ISO 8601
+  notes?: string;
 }
 ```
 
@@ -162,7 +212,7 @@ interface CloudStorageData {
 }
 ```
 
-### Auto-Sync Integration
+### Auto-Sync Integration (legacy)
 
 FilamentDB automatically syncs data when items are added through the scanner or generator pages.
 
@@ -179,7 +229,7 @@ if (typeof window !== 'undefined' &&
 }
 ```
 
-### Setup Flow
+### Setup Flow (legacy)
 
 #### First Device Setup
 

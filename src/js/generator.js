@@ -101,56 +101,12 @@ async function suggestColorFromInput() {
     }
 }
 
-function normalizeToHex(colorStr) {
-    if (!colorStr) return '#000000';
-    const s = ('' + colorStr).trim();
-    if (/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(s)) {
-        if (s.length === 4) {
-            const r = s[1], g = s[2], b = s[3];
-            return ('#' + r + r + g + g + b + b).toUpperCase();
-        }
-        return s.toUpperCase();
-    }
-    const m = s.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
-    if (m) {
-        const r = parseInt(m[1], 10), g = parseInt(m[2], 10), b = parseInt(m[3], 10);
-        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
-    }
-    const computed = ColorUtils.getColorHex(s);
-    if (/^#/.test(computed)) return computed.toUpperCase();
-    const m2 = computed.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
-    if (m2) {
-        const r = parseInt(m2[1], 10), g = parseInt(m2[2], 10), b = parseInt(m2[3], 10);
-        return ColorUtils.rgbToHex(r, g, b).toUpperCase();
-    }
-    return '#000000';
-}
+// Use normalizeToHex from SharedUtils
+const normalizeToHex = SharedUtils.normalizeToHex;
 
-async function showColorSuggestionsDialog(suggestions, hex) {
-    return new Promise(resolve => {
-        const overlay = document.createElement('div');
-        overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex='10000';
-        const panel = document.createElement('div');
-        panel.style.position='absolute'; panel.style.top='50%'; panel.style.left='50%'; panel.style.transform='translate(-50%, -50%)';
-        panel.style.background='#fff'; panel.style.borderRadius='12px'; panel.style.padding='16px'; panel.style.width='min(420px, 90vw)'; panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.2)';
-        panel.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Suggestions from filamentcolors.xyz</div>
-        <div style=\"font-size:12px;color:#666;margin-bottom:8px\">Current ${hex.toUpperCase()}</div>`;
-        const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px';
-        suggestions.forEach(s => {
-            const btn = document.createElement('button');
-            btn.textContent = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''} · ΔE ${s.distance}`;
-            btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
-            btn.addEventListener('click', () => { cleanup(); resolve(btn.textContent.split(' · ')[0]); });
-            list.appendChild(btn);
-        });
-        const cancel = document.createElement('button');
-        cancel.textContent = 'Cancel';
-        cancel.style.marginTop='12px'; cancel.style.padding='8px 10px'; cancel.style.border='1px solid #ddd'; cancel.style.borderRadius='8px'; cancel.style.cursor='pointer';
-        cancel.addEventListener('click', ()=>{ cleanup(); resolve(null); });
-        panel.appendChild(list); panel.appendChild(cancel); overlay.appendChild(panel); document.body.appendChild(overlay);
-        function cleanup(){ try{ document.body.removeChild(overlay); } catch{} }
-    });
-}
+// Use showColorSuggestionsDialog from SharedUtils  
+const showColorSuggestionsDialog = (suggestions, hex) => 
+    SharedUtils.showColorSuggestionsDialog(suggestions, hex, { cancelText: 'Cancel', titleText: 'Current' });
 
 async function showManufacturerSuggestionsDialogForGen(hex, material, defaultMfr) {
     if (!window.FCX) return null;

@@ -149,7 +149,7 @@
       if (!types || types.length === 0) {
         // Try to fetch default snapshots
         try {
-          const response = await fetch('/fcx-snapshot/all.json');
+          const response = await fetch('/assets/fcx-snapshot/all.json');
           if (response.ok) {
             const data = await response.json();
             localStorage.setItem('fcx_snapshot_types', JSON.stringify(['ALL']));

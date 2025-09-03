@@ -125,45 +125,46 @@ function processImageFile(file) {
     reader.readAsDataURL(file);
 }
 
-function scanQRCode(img) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    canvas.width = img.width;
-    canvas.height = img.height;
-    context.drawImage(img, 0, 0);
-    
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
-    });
-    
-    if (code) {
-        displayResult(code.data);
-        hideError();
-    } else {
-        const invertedCode = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "onlyInvert",
+async function scanQRCode(img) {
+    try {
+        // Use QrScanner to decode from image
+        const result = await window.QrScanner.scanImage(img, {
+            returnDetailedScanResult: true
         });
         
-        if (invertedCode) {
-            displayResult(invertedCode.data);
+        if (result && result.data) {
+            displayResult(result.data);
             hideError();
-        } else {
-            const attemptBoth = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "attemptBoth",
+            return;
+        }
+    } catch (error) {
+        // Try with inverted colors as fallback
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            ctx.globalCompositeOperation = 'difference';
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const invertedResult = await window.QrScanner.scanImage(canvas, {
+                returnDetailedScanResult: true
             });
             
-            if (attemptBoth) {
-                displayResult(attemptBoth.data);
+            if (invertedResult && invertedResult.data) {
+                displayResult(invertedResult.data);
                 hideError();
-            } else {
-                showError('No QR code found in the image. Please ensure the image contains a valid QR code.');
-                resultSection.classList.add('hidden');
+                return;
             }
+        } catch (e) {
+            // Fallback failed
         }
     }
+    
+    showError('No QR code found in the image. Please ensure the image contains a valid QR code.');
+    resultSection.classList.add('hidden');
 }
 
 function displayResult(data) {
@@ -259,15 +260,9 @@ function clearAll() {
     saveButton.disabled = false;
 }
 
-// Storage functions
-function getStoredEntries() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-}
-
-function saveToStorage(entries) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
+// Use shared storage functions
+const getStoredEntries = SharedUtils.getStoredEntries;
+const saveToStorage = SharedUtils.saveToStorage;
 
 function saveCurrentEntry() {
     if (!currentParsedData) return;

@@ -29,7 +29,7 @@ let currentView = 'list';
 let activeFilters = new Set();
 let tableSortField = null;
 let tableSortDirection = 'asc';
-const STORAGE_KEY = 'qrCodeEntries';
+// Use 'qrCodeEntries' from SharedUtils
 let colorPickerInput = null;
 let colorInputSupported = null;
 let lastDeletedEntry = null;
@@ -60,79 +60,46 @@ document.querySelectorAll('.view-toggle').forEach(btn => {
 });
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Ensure elements exist before populating options
-    initializeCloudStorage();
+    await initializeCloudStorage(); // Wait for database to initialize
     setupColorPicker();
     manufacturerFilter = document.getElementById('manufacturerFilter');
     materialFilter = document.getElementById('materialFilter');
     colorFilter = document.getElementById('colorFilter');
     bindFilterSelects();
-    loadSavedEntries();
+    await loadSavedEntries();
+    
+    // Set up real-time sync if database is available
+    setupRealTimeSync();
 });
 
-// Storage functions
-function getStoredEntries() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const entries = stored ? JSON.parse(stored) : [];
-    
-    // Migrate existing entries to include missing fields and ensure unique, stable IDs
-    let needsMigration = false;
-    const seenIds = new Set();
-    entries.forEach(entry => {
-        // Ensure spoolCount and remainingPercentage exist
-        if (!entry.spoolCount) {
-            entry.spoolCount = 1;
-            needsMigration = true;
-        }
-        if (entry.remainingPercentage === undefined) {
-            entry.remainingPercentage = 100;
-            needsMigration = true;
-        }
-        // Ensure every entry has an ID (string)
-        if (!entry.id) {
-            entry.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-            needsMigration = true;
-        } else if (typeof entry.id !== 'string') {
-            entry.id = String(entry.id);
-            needsMigration = true;
-        }
-    });
-
-    // De-duplicate by ID while preserving the most recent item
-    // Build a map keeping the last occurrence for each id
-    const byId = new Map();
-    for (const e of entries) {
-        byId.set(e.id, e);
-    }
-    if (byId.size !== entries.length) {
-        needsMigration = true;
-    }
-    const deduped = Array.from(byId.values());
-    
-    // Save migrated data back to storage
-    if (needsMigration) {
-        saveToStorage(deduped);
-    }
-    
-    return needsMigration ? deduped : entries;
+// Storage functions - now use database via SharedUtils
+async function getStoredEntries() {
+    // Use SharedUtils which connects to database
+    return await SharedUtils.getStoredEntries();
 }
 
-function saveToStorage(entries) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
+// Storage functions removed - use SharedUtils.addEntry/updateEntry/deleteEntry directly
 
-function loadSavedEntries() {
-    allEntries = getStoredEntries();
-    filteredEntries = [...allEntries];
-    
-    updateStats();
-    populateFilterOptions();
-    
-    if (searchInput.value) {
-        handleSearch();
-    } else {
-        handleSort();
+async function loadSavedEntries() {
+    try {
+        allEntries = await getStoredEntries();
+        filteredEntries = [...allEntries];
+        
+        updateStats();
+        populateFilterOptions();
+        
+        if (searchInput.value) {
+            handleSearch();
+        } else {
+            handleSort();
+        }
+    } catch (error) {
+        console.error('Failed to load entries:', error);
+        allEntries = [];
+        filteredEntries = [];
+        if (emptyState) emptyState.classList.remove('hidden');
     }
 }
 
@@ -588,17 +555,18 @@ function syncFilterSelectUI() {
     if (colorFilter) colorFilter.value = getActive('color');
 }
 
-function deleteEntry(id) {
+async function deleteEntry(id) {
     const entryToDelete = allEntries.find(entry => entry.id === id);
     if (!entryToDelete) return;
     
     // Store the deleted entry for undo functionality
     lastDeletedEntry = { ...entryToDelete };
     
-    // Remove entry from arrays
-    allEntries = allEntries.filter(entry => entry.id !== id);
-    saveToStorage(allEntries);
-    loadSavedEntries();
+    // Delete from database
+    await SharedUtils.deleteEntry(id);
+    
+    // Reload entries from database
+    await loadSavedEntries();
     
     // Show undo notification
     showUndoNotification(entryToDelete);
@@ -679,12 +647,11 @@ function showUndoNotification(deletedEntry) {
     }, 10000);
     
     // Undo button click handler
-    undoButton.addEventListener('click', () => {
+    undoButton.addEventListener('click', async () => {
         if (lastDeletedEntry) {
-            // Restore the entry
-            allEntries.push(lastDeletedEntry);
-            saveToStorage(allEntries);
-            loadSavedEntries();
+            // Restore the entry to database
+            await SharedUtils.addEntry(lastDeletedEntry);
+            await loadSavedEntries();
             lastDeletedEntry = null;
             hideUndoNotification();
         }
@@ -777,31 +744,21 @@ function setupColorPicker() {
             newColorHex = hex.toUpperCase();
         }
         
-        // Update entry in place with spread operator to ensure immutability
-        allEntries[entryIndex] = {
-            ...allEntries[entryIndex],
+        // Update entry in database
+        await SharedUtils.updateEntry(id, {
             Color: newColor,
             ColorHex: newColorHex
-        };
+        });
         
-        saveToStorage(allEntries);
-        // Update both arrays to avoid stale references
-        filteredEntries = [...allEntries];
+        // Reload from database
+        await loadSavedEntries();
         
-        // Re-apply current filters and sorting instead of full reload
-        if (searchInput.value) {
-            handleSearch();
-        } else {
-            handleSort();
-        }
-        displayEntries(filteredEntries);
-        updateStats();
         // cleanup id so subsequent opens don't accidentally reuse
         delete colorPickerInput.dataset.entryId;
     });
 }
 
-function openColorPickerForEntry(id) {
+async function openColorPickerForEntry(id) {
     const entry = allEntries.find(en => en.id === id);
     if (!entry || !colorPickerInput) return;
     const current = entry.ColorHex || getColorHex(entry.Color);
@@ -816,7 +773,7 @@ function openColorPickerForEntry(id) {
         colorPickerInput.click();
     } else {
         // Fallback prompt for browsers without native color input
-        fallbackColorPrompt(id, hex);
+        await fallbackColorPrompt(id, hex);
     }
 }
 
@@ -927,30 +884,15 @@ async function openColorSelectionFlow(id) {
             const label = `${s.color_name}${s.manufacturer ? ' ('+s.manufacturer+')' : ''}`;
             btn.textContent = `${label}${s.distance!=null? ' · ΔE '+s.distance : ''}`;
             btn.style.padding='8px 10px'; btn.style.border='1px solid #eee'; btn.style.borderRadius='8px'; btn.style.cursor='pointer'; btn.style.textAlign='left';
-            btn.addEventListener('click', ()=>{
-                // Find and update the entry by ID using a more robust approach
-                const entryIndex = allEntries.findIndex(e => e.id === id);
-                if (entryIndex !== -1) {
-                    // Update the entry in place
-                    allEntries[entryIndex] = {
-                        ...allEntries[entryIndex],
-                        Color: label,
-                        ColorHex: (s.hex_color||'').toUpperCase()
-                    };
-                    
-                    saveToStorage(allEntries);
-                    // Update both arrays to avoid stale references
-                    filteredEntries = [...allEntries];
-                    
-                    // Re-apply current filters and sorting instead of full reload
-                    if (searchInput.value) {
-                        handleSearch();
-                    } else {
-                        handleSort();
-                    }
-                    displayEntries(filteredEntries);
-                    updateStats();
-                }
+            btn.addEventListener('click', async ()=>{
+                // Update the entry in database
+                await SharedUtils.updateEntry(id, {
+                    Color: label,
+                    ColorHex: (s.hex_color||'').toUpperCase()
+                });
+                
+                // Reload from database
+                await loadSavedEntries();
                 cleanup();
             });
             list.appendChild(btn);
@@ -958,7 +900,7 @@ async function openColorSelectionFlow(id) {
     }
 
     cancelBtn.addEventListener('click', ()=>{ cleanup(); });
-    pickBtn.addEventListener('click', ()=>{ cleanup(); openColorPickerForEntry(id); });
+    pickBtn.addEventListener('click', async ()=>{ cleanup(); await openColorPickerForEntry(id); });
 }
 
 function normalizeToHex(colorStr) {
@@ -1067,7 +1009,7 @@ async function showManufacturerSuggestionsDialog(hex, material, defaultMfr) {
 // Spool count editor
 // ===============================
 
-function openSpoolEditor(id) {
+async function openSpoolEditor(id) {
     const entry = allEntries.find(e => e.id === id);
     if (!entry) return;
     const current = parseInt(entry.spoolCount || 1, 10) || 1;
@@ -1079,9 +1021,10 @@ function openSpoolEditor(id) {
         return;
     }
     if (value === current) return;
-    entry.spoolCount = value;
-    saveToStorage(allEntries);
-    loadSavedEntries();
+    
+    // Update in database
+    await SharedUtils.updateEntry(id, { spoolCount: value });
+    await loadSavedEntries();
 }
 
 function isColorInputSupported() {
@@ -1091,7 +1034,7 @@ function isColorInputSupported() {
     return supported;
 }
 
-function fallbackColorPrompt(id, initialHex) {
+async function fallbackColorPrompt(id, initialHex) {
     const current = allEntries.find(e => e.id === id);
     const currentLabel = current ? current.Color : '';
     const val = prompt('Enter a color (hex like #FF8800 or name):', initialHex || currentLabel || '#FF6B35');
@@ -1109,16 +1052,22 @@ function fallbackColorPrompt(id, initialHex) {
     }
     const entry = allEntries.find(e => e.id === id);
     if (!entry) return;
-    entry.Color = newDisplay;
-    saveToStorage(allEntries);
-    loadSavedEntries();
+    
+    await SharedUtils.updateEntry(id, { Color: newDisplay });
+    await loadSavedEntries();
 }
 
-function clearAllEntries() {
+async function clearAllEntries() {
     if (!confirm('Are you sure you want to delete all saved entries? This cannot be undone.')) return;
     
-    localStorage.removeItem(STORAGE_KEY);
-    loadSavedEntries();
+    // Clear from database
+    if (window.FilamentDB && window.FilamentDB.isReady()) {
+        await window.FilamentDB.clearAll();
+    } else {
+        // Fallback to localStorage if database not ready
+        localStorage.removeItem('qrCodeEntries');
+    }
+    await loadSavedEntries();
 }
 
 function exportEntries() {
@@ -1159,7 +1108,7 @@ function handleImport(e) {
     if (!file) return;
     
     const reader = new FileReader();
-    reader.onload = function(event) {
+    reader.onload = async function(event) {
         try {
             const csv = event.target.result;
             const lines = csv.split('\n');
@@ -1183,9 +1132,11 @@ function handleImport(e) {
             }
             
             if (imported.length > 0) {
-                allEntries = [...allEntries, ...imported];
-                saveToStorage(allEntries);
-                loadSavedEntries();
+                // Add entries individually to database
+                for (const entry of imported) {
+                    await SharedUtils.addEntry(entry);
+                }
+                await loadSavedEntries();
                 alert(`Successfully imported ${imported.length} entries`);
             }
         } catch (error) {
@@ -1263,10 +1214,10 @@ function handleTableSort(field, headerElement) {
 // Inline Editing
 // ===============================
 
-function handleInlineEdit(id, field, cellEl) {
-    const entryIndex = allEntries.findIndex(e => e.id === id);
-    if (entryIndex === -1) return;
-    const current = allEntries[entryIndex];
+async function handleInlineEdit(id, field, cellEl) {
+    const current = allEntries.find(e => e.id === id);
+    if (!current) return;
+    
     let initial = '';
     if (field === 'remainingPercentage') {
         initial = String(current.remainingPercentage ?? 100);
@@ -1277,32 +1228,31 @@ function handleInlineEdit(id, field, cellEl) {
     const label = field === 'remainingPercentage' ? 'Remaining % (0-100)' : field;
     const val = prompt(`Edit ${label}:`, initial);
     if (val === null) return; // cancelled
+    
     let newValue = val.trim();
+    let updateData = {};
+    
     if (field === 'remainingPercentage') {
         const n = parseInt(newValue, 10);
         if (isNaN(n) || n < 0 || n > 100) { alert('Enter a number 0-100.'); return; }
-        current.remainingPercentage = n;
+        updateData.remainingPercentage = n;
     } else if (field === 'Temp1' || field === 'Temp2') {
         // Allow NA or any short string
         if (!newValue) newValue = 'NA';
-        current[field] = newValue;
+        updateData[field] = newValue;
     } else if (field === 'Color') {
-        current.Color = newValue || current.Color;
+        updateData.Color = newValue || current.Color;
         // If user typed a HEX, record it too
         if (/^#([A-Fa-f0-9]{6})$/.test(newValue)) {
-            current.ColorHex = newValue.toUpperCase();
+            updateData.ColorHex = newValue.toUpperCase();
         }
     } else {
-        current[field] = newValue || current[field];
+        updateData[field] = newValue || current[field];
     }
 
-    // Persist
-    allEntries[entryIndex] = { ...current };
-    saveToStorage(allEntries);
-    filteredEntries = [...allEntries];
-    if (searchInput.value) { handleSearch(); } else { handleSort(); }
-    displayEntries(filteredEntries);
-    updateStats();
+    // Update in database
+    await SharedUtils.updateEntry(id, updateData);
+    await loadSavedEntries();
 }
 
 // ========================================
@@ -1310,9 +1260,14 @@ function handleInlineEdit(id, field, cellEl) {
 // ========================================
 
 // Initialize cloud storage
-function initializeCloudStorage() {
-    if (typeof CloudStorage !== 'undefined') {
-        window.cloudStorage = new CloudStorage();
+async function initializeCloudStorage() {
+    // Initialize database connection and wait for it
+    if (window.FilamentDB) {
+        await window.FilamentDB.init();
+    }
+    // Give SharedUtils a chance to initialize too
+    if (SharedUtils.initDatabase) {
+        await SharedUtils.initDatabase();
     }
     updateCloudSyncButton();
 }
@@ -1344,8 +1299,16 @@ async function revertToCloudSnapshot() {
         const cloud = Array.isArray(result.data) ? result.data : [];
         // Ensure IDs exist
         cloud.forEach(e => { if (!e.id) e.id = Date.now().toString() + Math.random().toString(36).substr(2,9); else e.id = String(e.id); });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud));
-        loadSavedEntries();
+        // Clear existing entries and add cloud entries
+        if (window.FilamentDB && window.FilamentDB.isReady()) {
+            await window.FilamentDB.clearAll();
+            for (const entry of cloud) {
+                await SharedUtils.addEntry(entry);
+            }
+        } else {
+            localStorage.setItem('qrCodeEntries', JSON.stringify(cloud));
+        }
+        await loadSavedEntries();
         alert(`Restored ${cloud.length} items from cloud.`);
     } catch (e) {
         alert('Restore from cloud failed: ' + e.message);
@@ -1541,16 +1504,125 @@ async function performCloudSync() {
 
 // Update cloud sync button appearance
 function updateCloudSyncButton() {
-    const status = window.cloudStorage?.getStatus();
+    const dbReady = window.FilamentDB?.isReady();
     
-    if (!status || !status.configured) {
-        cloudSyncText.textContent = 'Setup Cloud Sync';
+    if (!dbReady) {
+        cloudSyncText.textContent = 'Setup Database';
         cloudSyncButton.className = 'cloud-sync-button setup';
-    } else if (status.enabled) {
-        cloudSyncText.textContent = 'Cloud Sync';
-        cloudSyncButton.className = 'cloud-sync-button enabled';
+        cloudSyncButton.title = 'Click to configure Supabase database';
     } else {
-        cloudSyncText.textContent = 'Cloud Sync (Disabled)';
-        cloudSyncButton.className = 'cloud-sync-button disabled';
+        cloudSyncText.textContent = 'Database Sync';
+        cloudSyncButton.className = 'cloud-sync-button enabled';
+        cloudSyncButton.title = 'Refresh from database';
+    }
+}
+
+// Cloud Storage Functions (restored)
+async function initializeCloudStorage() {
+    // Initialize database connection and wait for it
+    if (window.FilamentDB) {
+        await window.FilamentDB.init();
+    }
+    // Give SharedUtils a chance to initialize too
+    if (SharedUtils.initDatabase) {
+        await SharedUtils.initDatabase();
+    }
+    updateCloudSyncButton();
+}
+
+// Handle database sync button click - now uses Supabase database
+async function handleCloudSync() {
+    if (!window.FilamentDB || !window.FilamentDB.isReady()) {
+        // Not configured: take user to database setup
+        window.location.href = 'database-setup.html';
+        return;
+    }
+    // Database configured: reload data (sync is automatic in Supabase)
+    await performCloudSync();
+}
+
+// Refresh from database (replaces old cloud snapshot functionality)  
+async function revertToCloudSnapshot() {
+    if (!window.FilamentDB || !window.FilamentDB.isReady()) {
+        const go = confirm('Database is not configured. Open setup to configure?');
+        if (go) window.location.href = 'database-setup.html';
+        return;
+    }
+    const ok = confirm('This will REFRESH your inventory from the database. Continue?');
+    if (!ok) return;
+    
+    try {
+        revertCloudButton.disabled = true;
+        revertCloudButton.textContent = 'Refreshing…';
+        
+        // Just reload from database - data is already synced
+        await loadSavedEntries();
+        const count = allEntries.length;
+        
+        alert(`✅ Refreshed ${count} items from database.`);
+    } catch (e) {
+        alert('Database refresh failed: ' + e.message);
+        console.error(e);
+    } finally {
+        revertCloudButton.disabled = false;
+        revertCloudButton.textContent = 'Refresh from Database';
+    }
+}
+
+// Database sync performance function - replaces old cloud sync
+async function performCloudSync() {
+    try {
+        cloudSyncButton.disabled = true;
+        cloudSyncText.textContent = 'Syncing...';
+        
+        // With Supabase, sync is automatic - just refresh data
+        await loadSavedEntries();
+        
+        cloudSyncText.textContent = 'Sync Complete';
+        setTimeout(() => {
+            cloudSyncText.textContent = 'Database Sync';
+        }, 2000);
+    } catch (error) {
+        console.error('Database sync failed:', error);
+        cloudSyncText.textContent = 'Sync Failed';
+        setTimeout(() => {
+            cloudSyncText.textContent = 'Database Sync';
+        }, 3000);
+        alert('Database sync failed: ' + error.message);
+    } finally {
+        cloudSyncButton.disabled = false;
+    }
+}
+
+// Set up real-time sync for live updates
+function setupRealTimeSync() {
+    if (!window.FilamentDB?.isReady()) {
+        console.log('Database not ready, skipping real-time sync setup');
+        return;
+    }
+    
+    try {
+        // Subscribe to changes in the inventory table
+        const subscription = window.FilamentDB.subscribeToChanges(async (payload) => {
+            console.log('🔄 Real-time update received:', payload.eventType);
+            
+            // Refresh the inventory when data changes
+            await loadSavedEntries();
+            
+            // Show a subtle notification
+            if (cloudSyncText) {
+                const originalText = cloudSyncText.textContent;
+                cloudSyncText.textContent = '🔄 Updated';
+                setTimeout(() => {
+                    cloudSyncText.textContent = originalText;
+                }, 2000);
+            }
+        });
+        
+        if (subscription) {
+            console.log('✅ Real-time sync enabled');
+        }
+    } catch (error) {
+        console.error('Failed to set up real-time sync:', error);
     }
 }
